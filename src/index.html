@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Báo Cáo Task - Đội Nhóm</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --glass-bg: rgba(255, 255, 255, 0.15);
+      --glass-border: rgba(255, 255, 255, 0.3);
+      --text-dark: #1F2937;
+      --text-light: #F9FAFB;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      padding: 20px;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .form-container {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+      color: white;
+      transition: transform 0.3s ease;
+    }
+
+    .form-container:hover {
+      transform: translateY(-5px);
+    }
+
+    .header-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header-section h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header-section p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .form-control:focus {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: #fff;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+    }
+
+    /* Tùy chỉnh select cho hợp màu sáng trên nền trong suốt */
+    select.form-control {
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    select.form-control option {
+      background-color: var(--text-dark);
+      color: #fff;
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .col {
+      flex: 1;
+    }
+
+    /* Hiệu ứng focus cho file, date.. thay đổi icon */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
+      color: var(--primary);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .btn-submit:hover {
+      background: var(--text-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    /* Loading state */
+    .btn-submit.loading {
+      opacity: 0.8;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .alert {
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: none;
+      font-weight: 500;
+      text-align: center;
+    }
+    .alert.success {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      display: block;
+    }
+    .alert.error {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      display: block;
+    }
+
+    @media (max-width: 600px) {
+      .row { flex-direction: column; gap: 0; }
+      .form-container { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-container">
+    <div class="header-section">
+      <h2>Báo Cáo Task 🔥</h2>
+      <p>Hệ thống tự động đồng bộ hóa lên Sheet quản lý.</p>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <form id="taskForm" onsubmit="handleFormSubmit(event)">
+      
+      <div class="row">
+        <div class="form-group col">
+          <label>Thành viên thực hiện</label>
+          <select name="member_name" class="form-control" required>
+            <option value="" disabled selected>— Chọn thành viên —</option>
+            <option value="Nguyễn Văn A">Nguyễn Văn A</option>
+            <option value="Trần Thị B">Trần Thị B</option>
+            <option value="Lê Văn C">Lê Văn C</option>
+            <option value="Phạm Thị D">Phạm Thị D</option>
+            <option value="Hoàng Văn E">Hoàng Văn E</option>
+            <option value="Khách/Thực tập sinh">Khách/Thực tập sinh</option>
+          </select>
+        </div>
+
+        <div class="form-group col">
+          <label>Ban phụ trách (Nhóm)</label>
+          <select name="department" class="form-control" required>
+            <option value="" disabled selected>— Chọn Ban —</option>
+            <option value="Đội Nội">Đội Nội</option>
+            <option value="Văn Hóa - Giáo Dục">Văn Hóa - Giáo Dục</option>
+            <option value="Tài Chính">Tài Chính</option>
+            <option value="IT (Kỹ Thuật)">IT (Kỹ Thuật)</option>
+            <option value="Truyền Thông">Truyền Thông</option>
+            <option value="Sự Kiện">Sự Kiện</option>
+            <option value="Hậu Cần">Hậu Cần</option>
+            <option value="Nhân Sự">Nhân Sự</option>
+            <option value="R&D">Nghiên Cứu & Phát Triển (R&D)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tên Công Việc (Task)</label>
+        <input type="text" name="task_name" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required>
+      </div>
+
+      <div class="form-group">
+        <label>Chi tiết công việc / Khó khăn (Nếu có)</label>
+        <textarea name="task_desc" class="form-control" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
+      </div>
+
+      <div class="row">
+        <div class="form-group col">
+          <label>Trạng thái</label>
+          <select name="status" class="form-control" required>
+            <option value="Mới bắt đầu">Mới bắt đầu</option>
+            <option value="Đang tiến hành">Đang tiến hành</option>
+            <option value="Bị nghẽn (Cần hỗ trợ)">Bị nghẽn (Cần hỗ trợ)</option>
+            <option value="Đã hoàn thành">Đã hoàn thành ✅</option>
+          </select>
+        </div>
+
+        <div class="form-group col">
+          <label>Mức độ ưu tiên</label>
+          <select name="priority" class="form-control" required>
+            <option value="Sắp xếp sau (Thấp)">Sắp xếp sau (Thấp)</option>
+            <option value="Bình thường" selected>Bình thường</option>
+            <option value="Gấp gọn (Cao) 🚨">Gấp gọn (Cao) 🚨</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Deadline dự kiến</label>
+        <input type="date" name="deadline" class="form-control">
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn-submit">
+        Gửi Báo Cáo Task Tham Gia 🚀
+      </button>
+
+    </form>
+  </div>
+
+  <script>
+    function handleFormSubmit(event) {
+      event.preventDefault(); // Tránh load lại trang
+      
+      const form = document.getElementById("taskForm");
+      const btn = document.getElementById("submitBtn");
+      const alertBox = document.getElementById("alertBox");
+      
+      // Chuyển UI sang trạng thái loading
+      btn.innerText = "Đang gửi dữ liệu...";
+      btn.classList.add("loading");
+      alertBox.className = "alert";
+      alertBox.innerText = "";
+
+      // Gói gọn data từ form  
+      const formData = new FormData(form);
+      const dataObj = {};
+      formData.forEach((value, key) => (dataObj[key] = value));
+
+      // Gọi API Apps Script Backend
+      google.script.run
+        .withSuccessHandler(function(response) {
+            btn.classList.remove("loading");
+            btn.innerText = "Gửi Báo Cáo Task Tham Gia 🚀";
+            
+            if(response.success) {
+               alertBox.className = "alert success";
+               alertBox.innerText = "🎉 Cập nhật thành công! Task của bạn đã lên Google Sheet.";
+               form.reset(); // Xóa form điền mới
+               setTimeout(() => alertBox.className = "alert", 5000);
+            } else {
+               alertBox.className = "alert error";
+               alertBox.innerText = "❌ Lỗi: " + response.message;
+            }
+        })
+        .withFailureHandler(function(error) {
+            btn.classList.remove("loading");
+            btn.innerText = "Thử Lại";
+            alertBox.className = "alert error";
+            alertBox.innerText = "❌ Lỗi mạng hoặc Script không hợp lệ: " + error.message;
+        })
+        .submitTask(dataObj);
+    }
+  </script>
+</body>
+</html>
