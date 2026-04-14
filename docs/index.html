@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Task - Đội Nhóm</title>
+  <meta name="description" content="Hệ thống báo cáo và quản lý task nhóm - Tự động đồng bộ lên Google Sheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --glass-bg: rgba(255, 255, 255, 0.15);
+      --glass-border: rgba(255, 255, 255, 0.3);
+      --text-dark: #1F2937;
+      --text-light: #F9FAFB;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      padding: 20px;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .form-container {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+      color: white;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .form-container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.3);
+    }
+
+    .header-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header-section h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header-section p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      animation: fadeInUp 0.6s ease-out backwards;
+    }
+
+    .form-group:nth-child(1) { animation-delay: 0.1s; }
+    .form-group:nth-child(2) { animation-delay: 0.15s; }
+    .form-group:nth-child(3) { animation-delay: 0.2s; }
+    .form-group:nth-child(4) { animation-delay: 0.25s; }
+    .form-group:nth-child(5) { animation-delay: 0.3s; }
+    .form-group:nth-child(6) { animation-delay: 0.35s; }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: color 0.3s;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .form-control:focus {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: #fff;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    /* Tùy chỉnh select cho hợp màu sáng trên nền trong suốt */
+    select.form-control {
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 40px;
+    }
+    
+    select.form-control option {
+      background-color: var(--text-dark);
+      color: #fff;
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .col {
+      flex: 1;
+    }
+
+    /* Hiệu ứng focus cho file, date.. thay đổi icon */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
+      color: var(--primary);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-submit::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      background-size: 200% 100%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .btn-submit:hover {
+      background: var(--text-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .btn-submit:hover::after {
+      opacity: 1;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    /* Loading state */
+    .btn-submit.loading {
+      opacity: 0.8;
+      cursor: not-allowed;
+      pointer-events: none;
+      animation: pulse 1.5s infinite;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: none;
+      font-weight: 500;
+      text-align: center;
+      animation: fadeInUp 0.4s ease-out;
+    }
+    .alert.success {
+      background: rgba(16, 185, 129, 0.25);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      display: block;
+    }
+    .alert.error {
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      display: block;
+    }
+
+    /* Floating particles background */
+    .particles {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: -1;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      animation: float linear infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+    }
+
+    .footer-text {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 600px) {
+      .row { flex-direction: column; gap: 0; }
+      .form-container { padding: 24px; }
+      .header-section h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="form-container">
+    <div class="header-section">
+      <h1>Báo Cáo Task 🔥</h1>
+      <p>Hệ thống tự động đồng bộ hóa lên Sheet quản lý.</p>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <form id="taskForm" onsubmit="handleFormSubmit(event)">
+      
+      <div class="row">
+        <div class="form-group col">
+          <label>Thành viên thực hiện</label>
+          <select name="member_name" id="select-member" class="form-control" required>
+            <option value="" disabled selected>— Chọn thành viên —</option>
+            <option value="Nguyễn Văn A">Nguyễn Văn A</option>
+            <option value="Trần Thị B">Trần Thị B</option>
+            <option value="Lê Văn C">Lê Văn C</option>
+            <option value="Phạm Thị D">Phạm Thị D</option>
+            <option value="Hoàng Văn E">Hoàng Văn E</option>
+            <option value="Khách/Thực tập sinh">Khách/Thực tập sinh</option>
+          </select>
+        </div>
+
+        <div class="form-group col">
+          <label>Ban phụ trách (Nhóm)</label>
+          <select name="department" id="select-department" class="form-control" required>
+            <option value="" disabled selected>— Chọn Ban —</option>
+            <option value="Đội Nội">Đội Nội</option>
+            <option value="Văn Hóa - Giáo Dục">Văn Hóa - Giáo Dục</option>
+            <option value="Tài Chính">Tài Chính</option>
+            <option value="IT (Kỹ Thuật)">IT (Kỹ Thuật)</option>
+            <option value="Truyền Thông">Truyền Thông</option>
+            <option value="Sự Kiện">Sự Kiện</option>
+            <option value="Hậu Cần">Hậu Cần</option>
+            <option value="Nhân Sự">Nhân Sự</option>
+            <option value="R&D">Nghiên Cứu & Phát Triển (R&D)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tên Công Việc (Task)</label>
+        <input type="text" name="task_name" id="input-task-name" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required>
+      </div>
+
+      <div class="form-group">
+        <label>Chi tiết công việc / Khó khăn (Nếu có)</label>
+        <textarea name="task_desc" id="input-task-desc" class="form-control" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
+      </div>
+
+      <div class="row">
+        <div class="form-group col">
+          <label>Trạng thái</label>
+          <select name="status" id="select-status" class="form-control" required>
+            <option value="Mới bắt đầu">Mới bắt đầu</option>
+            <option value="Đang tiến hành">Đang tiến hành</option>
+            <option value="Bị nghẽn (Cần hỗ trợ)">Bị nghẽn (Cần hỗ trợ)</option>
+            <option value="Đã hoàn thành">Đã hoàn thành ✅</option>
+          </select>
+        </div>
+
+        <div class="form-group col">
+          <label>Mức độ ưu tiên</label>
+          <select name="priority" id="select-priority" class="form-control" required>
+            <option value="Sắp xếp sau (Thấp)">Sắp xếp sau (Thấp)</option>
+            <option value="Bình thường" selected>Bình thường</option>
+            <option value="Gấp gọn (Cao) 🚨">Gấp gọn (Cao) 🚨</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Deadline dự kiến</label>
+        <input type="date" name="deadline" id="input-deadline" class="form-control">
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn-submit">
+        Gửi Báo Cáo Task Tham Gia 🚀
+      </button>
+
+    </form>
+
+    <p class="footer-text">Dữ liệu được bảo mật và đồng bộ tự động</p>
+  </div>
+
+  <script>
+    // ⚡ CẤU HÌNH: Thay URL này bằng URL deploy Apps Script của bạn
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q/exec';
+
+    // Tạo floating particles
+    (function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        const size = Math.random() * 20 + 5;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDuration = (Math.random() * 15 + 10) + 's';
+        particle.style.animationDelay = (Math.random() * 10) + 's';
+        container.appendChild(particle);
+      }
+    })();
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      
+      const form = document.getElementById("taskForm");
+      const btn = document.getElementById("submitBtn");
+      const alertBox = document.getElementById("alertBox");
+      
+      // Chuyển UI sang trạng thái loading
+      btn.innerText = "⏳ Đang gửi dữ liệu...";
+      btn.classList.add("loading");
+      alertBox.className = "alert";
+      alertBox.innerText = "";
+
+      // Gói gọn data từ form
+      const formData = new FormData(form);
+      const dataObj = {};
+      formData.forEach((value, key) => (dataObj[key] = value));
+
+      try {
+        // Gọi API Apps Script qua fetch()
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(dataObj),
+          redirect: 'follow'
+        });
+
+        const result = await response.json();
+        
+        btn.classList.remove("loading");
+        btn.innerText = "Gửi Báo Cáo Task Tham Gia 🚀";
+        
+        if (result.success) {
+          alertBox.className = "alert success";
+          alertBox.innerText = "🎉 Cập nhật thành công! Task của bạn đã lên Google Sheet.";
+          form.reset();
+          setTimeout(() => {
+            alertBox.className = "alert";
+            alertBox.innerText = "";
+          }, 5000);
+        } else {
+          alertBox.className = "alert error";
+          alertBox.innerText = "❌ Lỗi: " + result.message;
+        }
+      } catch (error) {
+        btn.classList.remove("loading");
+        btn.innerText = "Thử Lại 🔄";
+        alertBox.className = "alert error";
+        alertBox.innerText = "❌ Lỗi kết nối: " + error.message;
+      }
+    }
+  </script>
+</body>
+</html>
