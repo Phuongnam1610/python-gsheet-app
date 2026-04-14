@@ -437,15 +437,21 @@
       });
     }
 
-    // Set href động cho nút back bằng url hiện tại trừ page=dashboard
+    // MỤC CẤU HÌNH CHO GITHUB PAGES
+    const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q/exec"; 
+
     window.onload = () => {
-      // Gọi fetch dữ liệu
-      if (typeof google !== 'undefined' && google.script) {
+      // 1. Gắn link cho nút Back
+      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
         google.script.run.withSuccessHandler(function(url) {
-          // Gắn link về trang chính dựa trên URL động của Apps Script
           document.getElementById('btnReportLink').href = url + '?page=report';
         }).getScriptUrl();
+      } else if (APP_SCRIPT_URL !== "") {
+        document.getElementById('btnReportLink').href = "index.html"; 
+      }
 
+      // 2. Fetch Data Dashboard
+      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
         google.script.run
           .withSuccessHandler(function(response) {
             if(response.success) {
@@ -458,6 +464,15 @@
             alert("Lỗi kết nối: " + err.message);
           })
           .getDashboardData();
+      } else if (APP_SCRIPT_URL !== "") {
+        // External JSON API fetch
+        fetch(APP_SCRIPT_URL + "?action=getDashboardData")
+          .then(res => res.json())
+          .then(response => {
+             if(response.success) updateDashboard(response.data);
+             else alert("Lỗi tải data: " + response.message);
+          })
+          .catch(err => alert("Lỗi kết nối: " + err));
       } else {
         // Mock data nếu chạy local (để test UI)
         setTimeout(() => {

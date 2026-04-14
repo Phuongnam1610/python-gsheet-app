@@ -1,5 +1,7 @@
 import subprocess
 import sys
+import os
+import re
 
 DEPLOY_ID = "AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q"
 
@@ -23,6 +25,37 @@ def run(desc, cmd):
     print(f"[SUCCESS] {desc} - Success!")
     return True
 
+def build_docs():
+    print(f"\n[RUN] Building docs for GitHub Pages...")
+    src_dir = "src"
+    docs_dir = "docs"
+    
+    if not os.path.exists(docs_dir):
+        os.makedirs(docs_dir)
+        
+    script_url_raw = f'https://script.google.com/macros/s/{DEPLOY_ID}/exec'
+    
+    for filename in os.listdir(src_dir):
+        if filename.endswith(".html"):
+            src_path = os.path.join(src_dir, filename)
+            docs_path = os.path.join(docs_dir, filename)
+            
+            with open(src_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            # Replace APP_SCRIPT_URL inside the script tag
+            content = re.sub(
+                r'const\s+APP_SCRIPT_URL\s*=\s*".*?";',
+                f'const APP_SCRIPT_URL = "{script_url_raw}";',
+                content
+            )
+            
+            with open(docs_path, "w", encoding="utf-8") as f:
+                f.write(content)
+                
+    print("[SUCCESS] Building docs - Success!")
+    return True
+
 def push_and_deploy():
     print("=" * 60)
     print(">>> FULL DEPLOY: Apps Script + GitHub Pages")
@@ -44,9 +77,11 @@ def push_and_deploy():
     if not run("Deploy Apps Script (same URL)", deploy_cmd):
         sys.exit(1)
 
-    # Step 3: Git commit & push
+    # Step 3: Build docs and Git commit & push
+    build_docs()
+    
     run("Git add", "git add .")
-    run("Git commit", 'git commit -m "Update: login system + dashboard" --allow-empty')
+    run("Git commit", 'git commit -m "Auto-deploy: update source and docs" --allow-empty')
     if not run("Push to GitHub Pages", "git push"):
         print("[WARNING] Git push failed. Check remote and credentials.")
         sys.exit(1)
