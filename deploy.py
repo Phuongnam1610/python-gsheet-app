@@ -1,41 +1,62 @@
 import subprocess
 import sys
-import os
 
-def check_clasp_installed():
+DEPLOY_ID = "AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q"
+
+def check_tool(name, cmd):
     try:
-        # Kiểm tra xem máy đã cài clasp chưa
-        subprocess.run(["clasp", "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except:
+        print(f"[MISSING] Chua cai {name}.")
         return False
 
-def push_to_appscript():
-    print("🚀 Bắt đầu quá trình đẩy mã nguồn lên Google Apps Script...")
-    
-    if not check_clasp_installed():
-        print("❌ Lỗi: Bạn chưa cài đặt clasp. Vui lòng cài đặt Node.js và chạy lệnh: npm install -g @google/clasp")
+def run(desc, cmd):
+    print(f"\n[RUN] {desc}...")
+    result = subprocess.run(cmd, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = (result.stdout + result.stderr).strip()
+    if output:
+        print(output)
+    if result.returncode != 0:
+        print(f"[ERROR] Loi o buoc: {desc}")
+        return False
+    print(f"[SUCCESS] {desc} - Thanh cong!")
+    return True
+
+def main():
+    print("=" * 50)
+    print(">>> DEPLOY TOAN BO - Apps Script + GitHub Pages")
+    print("=" * 50)
+
+    # Kiểm tra tools
+    if not check_tool("clasp", ["clasp", "-v"]):
+        print("-> Cai dat: npm install -g @google/clasp")
         sys.exit(1)
-        
-    try:
-        # Chạy lệnh clasp push
-        # Lưu ý: Yêu cầu bạn đã chạy `clasp login` trước đó
-        result = subprocess.run(["clasp", "push", "--force"], 
-                                shell=True, 
-                                stdout=subprocess.PIPE, 
-                                stderr=subprocess.PIPE,
-                                text=True)
-                                
-        if result.returncode == 0:
-            print("✅ Đẩy mã nguồn thành công!")
-            print(result.stdout)
-        else:
-            print("❌ Đã xảy ra lỗi khi đẩy code. Vui lòng đảm bảo bạn đã chạy `clasp login`.")
-            print("Chi tiết lỗi:")
-            print(result.stderr)
-            
-    except Exception as e:
-        print(f"❌ Xảy ra lỗi bất ngờ: {e}")
+    if not check_tool("git", ["git", "--version"]):
+        sys.exit(1)
+
+    # Bước 1: Push code lên Apps Script
+    if not run("Push code len Google Apps Script", "clasp push --force"):
+        sys.exit(1)
+
+    # Bước 2: Deploy Apps Script (giu nguyen URL)
+    deploy_cmd = f'clasp deploy -i {DEPLOY_ID} -d "Auto deploy"'
+    if not run("Deploy Apps Script (cung URL cu)", deploy_cmd):
+        sys.exit(1)
+
+    # Bước 3: Git commit & push  
+    run("Git add", "git add .")
+    run("Git commit", 'git commit -m "Update: dashboard + improvements" --allow-empty')
+    if not run("Push len GitHub Pages", "git push"):
+        print("[WARNING] Git push that bai. Kiem tra lai remote va credentials.")
+        sys.exit(1)
+
+    print("\n" + "=" * 50)
+    print(">>> DEPLOY HOAN TAT!")
+    print("=" * 50)
+    print("Link Apps Script: URL giu nguyen, chi can refresh.")
+    print("Link GitHub Pages: Cho 1-2 phut roi refresh.")
+    print("=" * 50)
 
 if __name__ == "__main__":
-    push_to_appscript()
+    main()

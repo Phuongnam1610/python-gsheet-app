@@ -638,17 +638,84 @@
     }
 
     /* ============================================ */
+    /*  NAVBAR                                     */
+    /* ============================================ */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-link {
+      padding: 8px 16px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: white;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ============================================ */
     /*  RESPONSIVE                                 */
     /* ============================================ */
     @media (max-width: 600px) {
+      body { padding-top: 76px; }
       .row { flex-direction: column; gap: 0; }
       .form-container { padding: 24px; }
       .header-section h1 { font-size: 22px; }
       .history-item-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .nav-brand span { display: none; }
     }
   </style>
 </head>
-<body>
+<body style="padding-top: 76px;">
+
+  <!-- NAV BAR -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <div class="nav-brand">📊 <span>Task Manager</span></div>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link active">📋 Báo cáo</a>
+        <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
+      </div>
+    </div>
+  </nav>
 
   <!-- Floating particles -->
   <div class="particles" id="particles"></div>

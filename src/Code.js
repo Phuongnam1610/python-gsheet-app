@@ -2,12 +2,17 @@ var SHEET_ID = '1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g';
 var SECRET_KEY = 'TASK_RPT_2026_SECURE';
 
 function doGet(e) {
-  // Nếu request có parameter action=history → trả JSON lịch sử
-  if (e && e.parameter && e.parameter.action === 'history') {
+  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : '';
+
+  if (action === 'history') {
     return getHistory(e);
   }
 
-  // Mặc định: Trả về file HTML giao diện Form (giữ lại cho backward compatibility).
+  if (action === 'dashboard') {
+    return getDashboardData(e);
+  }
+
+  // Mặc định: Trả về file HTML giao diện Form
   return HtmlService.createHtmlOutputFromFile('index')
       .setTitle('Báo cáo & Quản lý Task Nhóm')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -27,7 +32,6 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Xóa key khỏi data trước khi xử lý
     delete data._key;
 
     var result = submitTask(data);
@@ -41,19 +45,16 @@ function doPost(e) {
   }
 }
 
-// Hàm xử lý chính — được gọi từ cả doPost lẫn google.script.run
+// Hàm xử lý chính
 function submitTask(formObject) {
   try {
-    // ✅ Validate dữ liệu đầu vào
     if (!formObject.member_name || !formObject.task_name || !formObject.department) {
       return { success: false, message: "Vui lòng điền đầy đủ: Thành viên, Ban phụ trách và Tên task." };
     }
-
     if (!formObject.status || !formObject.priority) {
       return { success: false, message: "Vui lòng chọn Trạng thái và Mức ưu tiên." };
     }
 
-    // ✅ Sanitize & trim dữ liệu
     formObject.member_name = formObject.member_name.toString().trim();
     formObject.task_name = formObject.task_name.toString().trim();
     formObject.department = formObject.department.toString().trim();
@@ -67,25 +68,22 @@ function submitTask(formObject) {
     }
 
     var ss = SpreadsheetApp.openById(SHEET_ID);
-    var sheet = ss.getSheets()[0]; // Truy cập trang tính đầu tiên
+    var sheet = ss.getSheets()[0];
 
-    // Nếu sheet còn trống hoàn toàn, ta tự động tạo tiêu đề Header cho xịn
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến']);
       sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
     }
 
-    // ✅ Chống gửi trùng: Kiểm tra dòng cuối cùng
     var lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       var lastMember = sheet.getRange(lastRow, 2).getValue();
       var lastTask = sheet.getRange(lastRow, 4).getValue();
       if (lastMember === formObject.member_name && lastTask === formObject.task_name) {
-        return { success: false, message: "Task '" + formObject.task_name + "' đã được gửi trước đó bởi " + formObject.member_name + ". Vui lòng thay đổi tên task hoặc kiểm tra lại." };
+        return { success: false, message: "Task '" + formObject.task_name + "' đã được gửi trước đó bởi " + formObject.member_name + "." };
       }
     }
 
-    // Ghi một dòng mới xuống dưới cùng của Sheet
     var timestamp = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm:ss");
 
     sheet.appendRow([
@@ -105,7 +103,7 @@ function submitTask(formObject) {
   }
 }
 
-// ✅ API trả về lịch sử 10 task gần nhất
+// API: Lịch sử 10 task gần nhất (cho form page)
 function getHistory(e) {
   try {
     var ss = SpreadsheetApp.openById(SHEET_ID);
@@ -114,39 +112,150 @@ function getHistory(e) {
 
     if (lastRow <= 1) {
       return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        data: [],
-        total: 0
+        success: true, data: [], total: 0
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Lấy 10 dòng gần nhất
     var startRow = Math.max(2, lastRow - 9);
     var numRows = lastRow - startRow + 1;
     var data = sheet.getRange(startRow, 1, numRows, 8).getValues();
 
     var entries = data.map(function(row) {
       return {
-        timestamp: Utilities.formatDate(new Date(row[0]), "GMT+7", "dd/MM/yyyy HH:mm"),
-        member_name: row[1],
-        department: row[2],
-        task_name: row[3],
-        task_desc: row[4],
-        status: row[5],
-        priority: row[6],
-        deadline: row[7] ? Utilities.formatDate(new Date(row[7]), "GMT+7", "dd/MM/yyyy") : ''
+        timestamp: safeFormatDate(row[0], "dd/MM/yyyy HH:mm"),
+        member_name: row[1] || '',
+        department: row[2] || '',
+        task_name: row[3] || '',
+        task_desc: row[4] || '',
+        status: row[5] || '',
+        priority: row[6] || '',
+        deadline: safeFormatDate(row[7], "dd/MM/yyyy")
       };
-    }).reverse(); // Mới nhất lên đầu
+    }).reverse();
 
     return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      data: entries,
-      total: lastRow - 1
+      success: true, data: entries, total: lastRow - 1
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      message: "Không thể tải lịch sử: " + error.toString()
+      success: false, message: "Lỗi: " + error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ✅ API: Dashboard - Toàn bộ dữ liệu thống kê
+function getDashboardData(e) {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var lastRow = sheet.getLastRow();
+
+    if (lastRow <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        data: {
+          total: 0, byStatus: {}, byPriority: {}, byDepartment: {},
+          byMember: {}, dailyCounts: {}, recentTasks: [],
+          completionRate: 0, avgTasksPerDay: 0
+        }
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var allData = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+    var total = allData.length;
+
+    var byStatus = {};
+    var byPriority = {};
+    var byDepartment = {};
+    var byMember = {};
+    var dailyCounts = {};
+    var completedCount = 0;
+
+    for (var i = 0; i < allData.length; i++) {
+      var row = allData[i];
+      var dateStr = safeFormatDate(row[0], "yyyy-MM-dd");
+      var member = (row[1] || 'Không rõ').toString();
+      var dept = (row[2] || 'Không rõ').toString();
+      var status = (row[5] || 'Không rõ').toString();
+      var priority = (row[6] || 'Không rõ').toString();
+
+      // Đếm theo status
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      if (status.indexOf('hoàn thành') > -1 || status.indexOf('Hoàn thành') > -1) {
+        completedCount++;
+      }
+
+      // Đếm theo priority
+      byPriority[priority] = (byPriority[priority] || 0) + 1;
+
+      // Đếm theo department
+      byDepartment[dept] = (byDepartment[dept] || 0) + 1;
+
+      // Đếm theo member
+      byMember[member] = (byMember[member] || 0) + 1;
+
+      // Đếm theo ngày
+      if (dateStr) {
+        dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
+      }
+    }
+
+    // Recent 20 tasks (mới nhất trước)
+    var recentStart = Math.max(0, allData.length - 20);
+    var recentTasks = [];
+    for (var j = allData.length - 1; j >= recentStart; j--) {
+      var r = allData[j];
+      recentTasks.push({
+        timestamp: safeFormatDate(r[0], "dd/MM/yyyy HH:mm"),
+        member_name: r[1] || '',
+        department: r[2] || '',
+        task_name: r[3] || '',
+        task_desc: r[4] || '',
+        status: r[5] || '',
+        priority: r[6] || '',
+        deadline: safeFormatDate(r[7], "dd/MM/yyyy")
+      });
+    }
+
+    // Tính completion rate
+    var completionRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
+    // Tính trung bình task/ngày
+    var dayKeys = Object.keys(dailyCounts);
+    var avgTasksPerDay = dayKeys.length > 0 ? Math.round((total / dayKeys.length) * 10) / 10 : 0;
+
+    var result = {
+      total: total,
+      completedCount: completedCount,
+      completionRate: completionRate,
+      avgTasksPerDay: avgTasksPerDay,
+      activeDays: dayKeys.length,
+      byStatus: byStatus,
+      byPriority: byPriority,
+      byDepartment: byDepartment,
+      byMember: byMember,
+      dailyCounts: dailyCounts,
+      recentTasks: recentTasks
+    };
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true, data: result
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false, message: "Lỗi dashboard: " + error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Helper: Format date an toàn
+function safeFormatDate(val, format) {
+  try {
+    if (!val) return '';
+    var d = new Date(val);
+    if (isNaN(d.getTime())) return val.toString();
+    return Utilities.formatDate(d, "GMT+7", format);
+  } catch (e) {
+    return val ? val.toString() : '';
   }
 }
