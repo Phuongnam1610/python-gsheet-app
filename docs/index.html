@@ -353,19 +353,24 @@
   <!-- POPUP: ĐĂNG KÝ CONTACT ID -->
   <div id="contactModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px;">Cài Đặt Nhận Thông Báo 🔔</h3>
+      <h3 style="margin-bottom: 10px;">Cập Nhật Thông Tin 🔔</h3>
       <p style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
-        Để nhận tin nhắn khi Task sắp trễ hạn, vui lòng cung cấp mã Telegram Chat ID (hoặc Discord User ID) của bạn.
+        Vui lòng cung cấp Discord ID và Gmail của bạn để hệ thống cập nhật.
       </p>
       
       <div id="modalAlert" class="alert"></div>
 
       <div class="form-group" style="text-align: left;">
-        <label>Mã Contact ID</label>
-        <input type="text" id="contactIdInput" class="form-control" placeholder="Nhập ID tại đây..." required>
+        <label>Discord ID</label>
+        <input type="text" id="discordInput" class="form-control" placeholder="Nhập Discord ID..." required>
+      </div>
+
+      <div class="form-group" style="text-align: left;">
+        <label>Gmail</label>
+        <input type="email" id="gmailInput" class="form-control" placeholder="Nhập Gmail..." required>
       </div>
       
-      <button onclick="saveContact()" id="btnSaveContact" class="btn-submit">Lưu Cấu Hình Nhận Tin</button>
+      <button onclick="saveContact()" id="btnSaveContact" class="btn-submit">Lưu Thông Tin</button>
       <button onclick="closeModal()" class="btn-submit" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); margin-top: 10px; color: #fff;">Bỏ qua lúc này</button>
     </div>
   </div>
@@ -406,8 +411,8 @@
       document.getElementById('displayUserName').innerText = currentUser.name;
       document.getElementById('member_name_input').value = currentUser.name;
 
-      // Kiểm tra xem user này đã nhập Contact ID chưa, nếu chưa bắt nhập
-      if (!currentUser.contact_id || currentUser.contact_id.trim() === '') {
+      // Kiểm tra xem user này đã nhập Discord ID và Gmail chưa, nếu chưa bắt nhập
+      if (!currentUser.discord_id || currentUser.discord_id.trim() === '' || !currentUser.gmail || currentUser.gmail.trim() === '') {
         setTimeout(() => {
           document.getElementById('contactModal').style.display = 'flex';
         }, 1000);
@@ -421,9 +426,9 @@
         if (action === "loginUser") {
           google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
             .loginUser(dataObj.username, dataObj.password);
-        } else if (action === "updateContactId") {
+        } else if (action === "updateUserInfo") {
           google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
-            .updateContactId(dataObj.username, dataObj.contactId);
+            .updateUserInfo(dataObj.username, dataObj.discord, dataObj.gmail);
         } else if (action === "submitTask") {
           google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
             .submitTask(dataObj);
@@ -444,7 +449,7 @@
       else {
         setTimeout(() => {
           if (action === "loginUser") {
-            onSuccess({ success: true, data: { username: dataObj.username, name: 'Tài khoản Test', contact_id: '' } });
+            onSuccess({ success: true, data: { username: dataObj.username, name: 'Tài khoản Test', discord_id: '', gmail: '' } });
           } else {
             onSuccess({ success: true, message: "Thành công (Mock)" });
           }
@@ -501,25 +506,27 @@
     }
 
     function saveContact() {
-      const cid = document.getElementById('contactIdInput').value;
+      const discord = document.getElementById('discordInput').value;
+      const gmail = document.getElementById('gmailInput').value;
       const btn = document.getElementById('btnSaveContact');
       const alertBox = document.getElementById('modalAlert');
 
-      if(!cid.trim()) {
+      if(!discord.trim() || !gmail.trim()) {
         alertBox.className = "alert error";
-        alertBox.innerText = "Vui lòng nhập ID hợp lệ!";
+        alertBox.innerText = "Vui lòng nhập đầy đủ thông tin!";
         return;
       }
 
       btn.classList.add('loading');
       btn.innerText = "Đang lưu...";
 
-      callBackendAPI("updateContactId", { username: currentUser.username, contactId: cid },
+      callBackendAPI("updateUserInfo", { username: currentUser.username, discord: discord, gmail: gmail },
         (res) => {
           btn.classList.remove('loading');
-          btn.innerText = "Lưu Cấu Hình Nhận Tin";
+          btn.innerText = "Lưu Thông Tin";
           if(res.success) {
-            currentUser.contact_id = cid;
+            currentUser.discord_id = discord;
+            currentUser.gmail = gmail;
             localStorage.setItem('task_app_user', JSON.stringify(currentUser));
             alertBox.className = "alert success";
             alertBox.innerText = "Đã lưu thành công!";
@@ -555,6 +562,11 @@
       const formData = new FormData(form);
       const dataObj = {};
       formData.forEach((value, key) => (dataObj[key] = value));
+
+      // Bổ sung thông tin người dùng vào dataObj
+      dataObj.mnv = currentUser.mnv || '';
+      dataObj.discord_id = currentUser.discord_id || '';
+      dataObj.gmail = currentUser.gmail || '';
 
       callBackendAPI("submitTask", dataObj,
         (res) => {
