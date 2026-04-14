@@ -14,6 +14,9 @@
       --glass-border: rgba(255, 255, 255, 0.3);
       --text-dark: #1F2937;
       --text-light: #F9FAFB;
+      --success: #10B981;
+      --error: #EF4444;
+      --warning: #F59E0B;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -21,12 +24,14 @@
     body {
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
       background-size: 400% 400%;
       animation: gradientBG 15s ease infinite;
       padding: 20px;
+      gap: 16px;
     }
 
     @keyframes gradientBG {
@@ -50,6 +55,28 @@
       50% { transform: scale(1.02); }
     }
 
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes checkmark {
+      0% { stroke-dashoffset: 50; }
+      100% { stroke-dashoffset: 0; }
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; max-height: 0; }
+      to { opacity: 1; max-height: 800px; }
+    }
+
+    /* ============================================ */
+    /*  FORM CONTAINER                              */
+    /* ============================================ */
     .form-container {
       background: var(--glass-bg);
       backdrop-filter: blur(16px);
@@ -70,6 +97,9 @@
       box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.3);
     }
 
+    /* ============================================ */
+    /*  HEADER                                      */
+    /* ============================================ */
     .header-section {
       text-align: center;
       margin-bottom: 30px;
@@ -87,6 +117,35 @@
       opacity: 0.9;
     }
 
+    /* ============================================ */
+    /*  DRAFT SAVED INDICATOR                       */
+    /* ============================================ */
+    .draft-indicator {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 8px;
+      justify-content: center;
+      transition: opacity 0.3s;
+    }
+
+    .draft-indicator.visible {
+      display: flex;
+    }
+
+    .draft-indicator .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    /* ============================================ */
+    /*  FORM FIELDS                                 */
+    /* ============================================ */
     .form-group {
       margin-bottom: 20px;
       animation: fadeInUp 0.6s ease-out backwards;
@@ -100,12 +159,18 @@
     .form-group:nth-child(6) { animation-delay: 0.35s; }
 
     .form-group label {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       margin-bottom: 8px;
       font-size: 14px;
       font-weight: 500;
       text-shadow: 0 1px 2px rgba(0,0,0,0.1);
       transition: color 0.3s;
+    }
+
+    .label-icon {
+      font-size: 16px;
     }
 
     .form-control {
@@ -131,7 +196,11 @@
       transform: translateY(-1px);
     }
 
-    /* Tùy chỉnh select cho hợp màu sáng trên nền trong suốt */
+    .form-control.error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+
     select.form-control {
       appearance: none;
       cursor: pointer;
@@ -140,7 +209,7 @@
       background-position: right 16px center;
       padding-right: 40px;
     }
-    
+
     select.form-control option {
       background-color: var(--text-dark);
       color: #fff;
@@ -149,8 +218,35 @@
     textarea.form-control {
       resize: vertical;
       min-height: 100px;
+      max-height: 200px;
     }
 
+    /* ============================================ */
+    /*  CHARACTER COUNTER                           */
+    /* ============================================ */
+    .char-counter {
+      text-align: right;
+      font-size: 11px;
+      margin-top: 6px;
+      opacity: 0.7;
+      transition: all 0.3s;
+    }
+
+    .char-counter.warn {
+      color: var(--warning);
+      opacity: 1;
+      font-weight: 600;
+    }
+
+    .char-counter.limit {
+      color: var(--error);
+      opacity: 1;
+      font-weight: 700;
+    }
+
+    /* ============================================ */
+    /*  LAYOUT                                     */
+    /* ============================================ */
     .row {
       display: flex;
       gap: 16px;
@@ -160,12 +256,14 @@
       flex: 1;
     }
 
-    /* Hiệu ứng focus cho file, date.. thay đổi icon */
     input[type="date"]::-webkit-calendar-picker-indicator {
       filter: invert(1);
       cursor: pointer;
     }
 
+    /* ============================================ */
+    /*  SUBMIT BUTTON                              */
+    /* ============================================ */
     .btn-submit {
       width: 100%;
       padding: 14px;
@@ -181,6 +279,10 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       position: relative;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     .btn-submit::after {
@@ -193,50 +295,303 @@
       transition: opacity 0.3s;
     }
 
-    .btn-submit:hover {
+    .btn-submit:hover:not(:disabled) {
       background: var(--text-light);
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0,0,0,0.15);
     }
 
-    .btn-submit:hover::after {
+    .btn-submit:hover:not(:disabled)::after {
       opacity: 1;
       animation: shimmer 1.5s infinite;
     }
 
-    .btn-submit:active {
+    .btn-submit:active:not(:disabled) {
       transform: translateY(0);
     }
 
-    /* Loading state */
-    .btn-submit.loading {
-      opacity: 0.8;
+    .btn-submit:disabled {
+      opacity: 0.7;
       cursor: not-allowed;
-      pointer-events: none;
-      animation: pulse 1.5s infinite;
     }
 
+    /* Loading spinner inside button */
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(79, 70, 229, 0.3);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .btn-submit.loading .spinner {
+      display: inline-block;
+    }
+
+    .btn-submit.loading .btn-text {
+      opacity: 0.8;
+    }
+
+    /* ============================================ */
+    /*  ALERTS                                     */
+    /* ============================================ */
     .alert {
-      padding: 12px 16px;
+      padding: 14px 16px;
       border-radius: 12px;
       margin-bottom: 20px;
       display: none;
       font-weight: 500;
       text-align: center;
-      animation: fadeInUp 0.4s ease-out;
+      font-size: 14px;
     }
+
     .alert.success {
       background: rgba(16, 185, 129, 0.25);
       border: 1px solid rgba(16, 185, 129, 0.5);
       display: block;
+      animation: scaleIn 0.4s ease-out;
     }
+
     .alert.error {
       background: rgba(239, 68, 68, 0.25);
       border: 1px solid rgba(239, 68, 68, 0.5);
       display: block;
+      animation: scaleIn 0.4s ease-out;
     }
 
-    /* Floating particles background */
+    /* ============================================ */
+    /*  SUCCESS OVERLAY (checkmark + confetti)      */
+    /* ============================================ */
+    .success-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: fadeInUp 0.3s ease;
+    }
+
+    .success-overlay.show {
+      display: flex;
+    }
+
+    .success-card {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      color: white;
+      animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: rgba(16, 185, 129, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .success-card h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .success-card p {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-bottom: 20px;
+    }
+
+    .btn-close-success {
+      padding: 10px 28px;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-close-success:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* ============================================ */
+    /*  HISTORY PANEL                              */
+    /* ============================================ */
+    .history-container {
+      width: 100%;
+      max-width: 600px;
+      animation: fadeInUp 0.6s ease-out 0.2s backwards;
+    }
+
+    .btn-history {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-history:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .btn-history .arrow {
+      transition: transform 0.3s;
+    }
+
+    .btn-history.open .arrow {
+      transform: rotate(180deg);
+    }
+
+    .history-panel {
+      display: none;
+      margin-top: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 20px;
+      color: white;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .history-panel.open {
+      display: block;
+      animation: scaleIn 0.3s ease-out;
+    }
+
+    .history-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .history-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history-panel::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.3);
+      border-radius: 3px;
+    }
+
+    .history-loading {
+      text-align: center;
+      padding: 20px;
+      opacity: 0.7;
+    }
+
+    .history-empty {
+      text-align: center;
+      padding: 20px;
+      opacity: 0.6;
+    }
+
+    .history-item {
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-bottom: 10px;
+      transition: all 0.3s;
+    }
+
+    .history-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .history-item:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .history-item-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .history-item-time {
+      font-size: 11px;
+      opacity: 0.65;
+    }
+
+    .history-item-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 11px;
+    }
+
+    .badge-member {
+      background: rgba(79, 70, 229, 0.35);
+      border: 1px solid rgba(79, 70, 229, 0.5);
+    }
+
+    .badge-dept {
+      background: rgba(245, 158, 11, 0.3);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+    }
+
+    .badge-status {
+      background: rgba(16, 185, 129, 0.3);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+    }
+
+    .badge-priority-high {
+      background: rgba(239, 68, 68, 0.35);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+
+    .history-total {
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.5;
+      margin-top: 12px;
+    }
+
+    /* ============================================ */
+    /*  FLOATING PARTICLES                         */
+    /* ============================================ */
     .particles {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -259,6 +614,22 @@
       100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
     }
 
+    /* ============================================ */
+    /*  CONFETTI CANVAS                            */
+    /* ============================================ */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1001;
+    }
+
+    /* ============================================ */
+    /*  FOOTER                                     */
+    /* ============================================ */
     .footer-text {
       text-align: center;
       margin-top: 20px;
@@ -266,10 +637,14 @@
       opacity: 0.6;
     }
 
+    /* ============================================ */
+    /*  RESPONSIVE                                 */
+    /* ============================================ */
     @media (max-width: 600px) {
       .row { flex-direction: column; gap: 0; }
       .form-container { padding: 24px; }
       .header-section h1 { font-size: 22px; }
+      .history-item-header { flex-direction: column; align-items: flex-start; gap: 4px; }
     }
   </style>
 </head>
@@ -278,19 +653,37 @@
   <!-- Floating particles -->
   <div class="particles" id="particles"></div>
 
+  <!-- Confetti canvas -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Success overlay -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+      <div class="success-icon">✅</div>
+      <h2>Gửi Thành Công!</h2>
+      <p>Task của bạn đã được đồng bộ lên Google Sheet.</p>
+      <button class="btn-close-success" onclick="closeSuccessOverlay()">Đóng</button>
+    </div>
+  </div>
+
+  <!-- Main Form -->
   <div class="form-container">
     <div class="header-section">
       <h1>Báo Cáo Task 🔥</h1>
       <p>Hệ thống tự động đồng bộ hóa lên Sheet quản lý.</p>
+      <div class="draft-indicator" id="draftIndicator">
+        <span class="dot"></span>
+        <span>Đã lưu bản nháp tự động</span>
+      </div>
     </div>
 
     <div id="alertBox" class="alert"></div>
 
     <form id="taskForm" onsubmit="handleFormSubmit(event)">
-      
+
       <div class="row">
         <div class="form-group col">
-          <label>Thành viên thực hiện</label>
+          <label><span class="label-icon">👤</span> Thành viên thực hiện</label>
           <select name="member_name" id="select-member" class="form-control" required>
             <option value="" disabled selected>— Chọn thành viên —</option>
             <option value="Nguyễn Văn A">Nguyễn Văn A</option>
@@ -303,7 +696,7 @@
         </div>
 
         <div class="form-group col">
-          <label>Ban phụ trách (Nhóm)</label>
+          <label><span class="label-icon">🏢</span> Ban phụ trách (Nhóm)</label>
           <select name="department" id="select-department" class="form-control" required>
             <option value="" disabled selected>— Chọn Ban —</option>
             <option value="Đội Nội">Đội Nội</option>
@@ -320,18 +713,19 @@
       </div>
 
       <div class="form-group">
-        <label>Tên Công Việc (Task)</label>
-        <input type="text" name="task_name" id="input-task-name" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required>
+        <label><span class="label-icon">📋</span> Tên Công Việc (Task)</label>
+        <input type="text" name="task_name" id="input-task-name" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required minlength="3">
       </div>
 
       <div class="form-group">
-        <label>Chi tiết công việc / Khó khăn (Nếu có)</label>
-        <textarea name="task_desc" id="input-task-desc" class="form-control" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
+        <label><span class="label-icon">📝</span> Chi tiết công việc / Khó khăn (Nếu có)</label>
+        <textarea name="task_desc" id="input-task-desc" class="form-control" maxlength="500" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
+        <div class="char-counter" id="charCounter">0 / 500</div>
       </div>
 
       <div class="row">
         <div class="form-group col">
-          <label>Trạng thái</label>
+          <label><span class="label-icon">📊</span> Trạng thái</label>
           <select name="status" id="select-status" class="form-control" required>
             <option value="Mới bắt đầu">Mới bắt đầu</option>
             <option value="Đang tiến hành">Đang tiến hành</option>
@@ -341,7 +735,7 @@
         </div>
 
         <div class="form-group col">
-          <label>Mức độ ưu tiên</label>
+          <label><span class="label-icon">🚦</span> Mức độ ưu tiên</label>
           <select name="priority" id="select-priority" class="form-control" required>
             <option value="Sắp xếp sau (Thấp)">Sắp xếp sau (Thấp)</option>
             <option value="Bình thường" selected>Bình thường</option>
@@ -351,25 +745,53 @@
       </div>
 
       <div class="form-group">
-        <label>Deadline dự kiến</label>
+        <label><span class="label-icon">📅</span> Deadline dự kiến</label>
         <input type="date" name="deadline" id="input-deadline" class="form-control">
       </div>
 
       <button type="submit" id="submitBtn" class="btn-submit">
-        Gửi Báo Cáo Task Tham Gia 🚀
+        <span class="spinner"></span>
+        <span class="btn-text">Gửi Báo Cáo Task Tham Gia 🚀</span>
       </button>
 
     </form>
 
-    <p class="footer-text">Dữ liệu được bảo mật và đồng bộ tự động</p>
+    <p class="footer-text">🔒 Dữ liệu được bảo mật và đồng bộ tự động</p>
+  </div>
+
+  <!-- History Section -->
+  <div class="history-container">
+    <button class="btn-history" id="btnHistory" onclick="toggleHistory()">
+      <span>📜 Xem lịch sử task gần đây</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="history-panel" id="historyPanel"></div>
   </div>
 
   <script>
-    // ⚡ CẤU HÌNH: Thay URL này bằng URL deploy Apps Script của bạn
+    // ⚡ CẤU HÌNH
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q/exec';
+    const SECRET_KEY = 'TASK_RPT_2026_SECURE';
+    const MAX_DESC_LENGTH = 500;
+    const STORAGE_KEY = 'taskFormDraft';
 
-    // Tạo floating particles
-    (function createParticles() {
+    // ============================================
+    //  INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      createParticles();
+      initDeadlineDefault();
+      initAutoSave();
+      initCharCounter();
+      resizeConfettiCanvas();
+    });
+
+    window.addEventListener('resize', resizeConfettiCanvas);
+
+    // ============================================
+    //  FLOATING PARTICLES
+    // ============================================
+    function createParticles() {
       const container = document.getElementById('particles');
       for (let i = 0; i < 15; i++) {
         const particle = document.createElement('div');
@@ -382,28 +804,145 @@
         particle.style.animationDelay = (Math.random() * 10) + 's';
         container.appendChild(particle);
       }
-    })();
+    }
+
+    // ============================================
+    //  [B] AUTO-FILL DEADLINE (hôm nay)
+    // ============================================
+    function initDeadlineDefault() {
+      const deadlineInput = document.getElementById('input-deadline');
+      if (!deadlineInput.value) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        deadlineInput.value = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+
+    // ============================================
+    //  [C] AUTO-SAVE DRAFT (localStorage)
+    // ============================================
+    function initAutoSave() {
+      loadFormData();
+
+      // Lắng nghe mọi thay đổi trên form và lưu nháp
+      const form = document.getElementById('taskForm');
+      const formFields = form.querySelectorAll('input, select, textarea');
+      formFields.forEach(field => {
+        field.addEventListener('input', saveFormData);
+        field.addEventListener('change', saveFormData);
+      });
+    }
+
+    function saveFormData() {
+      const form = document.getElementById('taskForm');
+      const formData = new FormData(form);
+      const data = {};
+      formData.forEach((val, key) => data[key] = val);
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        // Hiển thị chỉ báo đã lưu nháp
+        const indicator = document.getElementById('draftIndicator');
+        indicator.classList.add('visible');
+      } catch (e) {
+        // localStorage đầy hoặc bị chặn → bỏ qua
+      }
+    }
+
+    function loadFormData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+
+        const data = JSON.parse(saved);
+        const form = document.getElementById('taskForm');
+
+        Object.keys(data).forEach(key => {
+          const field = form.querySelector(`[name="${key}"]`);
+          if (field) {
+            field.value = data[key];
+          }
+        });
+
+        // Hiển thị chỉ báo nháp đã khôi phục
+        document.getElementById('draftIndicator').classList.add('visible');
+
+        // Cập nhật char counter nếu có dữ liệu task_desc
+        if (data.task_desc) {
+          updateCharCounter();
+        }
+      } catch (e) {
+        // JSON parse lỗi → xóa draft cũ
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function clearFormData() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('draftIndicator').classList.remove('visible');
+      } catch (e) { }
+    }
+
+    // ============================================
+    //  [D] CHARACTER COUNTER
+    // ============================================
+    function initCharCounter() {
+      const textarea = document.getElementById('input-task-desc');
+      textarea.addEventListener('input', updateCharCounter);
+      updateCharCounter(); // init
+    }
+
+    function updateCharCounter() {
+      const textarea = document.getElementById('input-task-desc');
+      const counter = document.getElementById('charCounter');
+      const len = textarea.value.length;
+
+      counter.textContent = `${len} / ${MAX_DESC_LENGTH}`;
+      counter.className = 'char-counter';
+
+      if (len >= MAX_DESC_LENGTH) {
+        counter.classList.add('limit');
+      } else if (len >= MAX_DESC_LENGTH * 0.8) {
+        counter.classList.add('warn');
+      }
+    }
+
+    // ============================================
+    //  FORM SUBMISSION (A + G improvements)
+    // ============================================
+    let isSubmitting = false; // [A] Chống double submit
 
     async function handleFormSubmit(event) {
       event.preventDefault();
-      
-      const form = document.getElementById("taskForm");
-      const btn = document.getElementById("submitBtn");
-      const alertBox = document.getElementById("alertBox");
-      
-      // Chuyển UI sang trạng thái loading
-      btn.innerText = "⏳ Đang gửi dữ liệu...";
-      btn.classList.add("loading");
-      alertBox.className = "alert";
-      alertBox.innerText = "";
 
-      // Gói gọn data từ form
+      // [A] Chặn double submit
+      if (isSubmitting) return;
+      isSubmitting = true;
+
+      const form = document.getElementById('taskForm');
+      const btn = document.getElementById('submitBtn');
+      const btnText = btn.querySelector('.btn-text');
+      const alertBox = document.getElementById('alertBox');
+
+      // UI → loading state
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btnText.textContent = 'Đang gửi dữ liệu...';
+      alertBox.className = 'alert';
+      alertBox.textContent = '';
+
+      // Thu thập data từ form
       const formData = new FormData(form);
       const dataObj = {};
       formData.forEach((value, key) => (dataObj[key] = value));
 
+      // [G] Thêm secret key chống spam
+      dataObj._key = SECRET_KEY;
+
       try {
-        // Gọi API Apps Script qua fetch()
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -412,28 +951,206 @@
         });
 
         const result = await response.json();
-        
-        btn.classList.remove("loading");
-        btn.innerText = "Gửi Báo Cáo Task Tham Gia 🚀";
-        
+
+        // Reset button
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btnText.textContent = 'Gửi Báo Cáo Task Tham Gia 🚀';
+        isSubmitting = false;
+
         if (result.success) {
-          alertBox.className = "alert success";
-          alertBox.innerText = "🎉 Cập nhật thành công! Task của bạn đã lên Google Sheet.";
+          // ✅ Thành công!
+          alertBox.className = 'alert success';
+          alertBox.textContent = '🎉 ' + result.message;
+
           form.reset();
+          clearFormData();
+          initDeadlineDefault(); // Đặt lại deadline mặc định
+          updateCharCounter();
+
+          // [E] Hiệu ứng confetti + success overlay
+          showSuccessOverlay();
+          launchConfetti();
+
           setTimeout(() => {
-            alertBox.className = "alert";
-            alertBox.innerText = "";
-          }, 5000);
+            alertBox.className = 'alert';
+            alertBox.textContent = '';
+          }, 8000);
         } else {
-          alertBox.className = "alert error";
-          alertBox.innerText = "❌ Lỗi: " + result.message;
+          // ❌ Lỗi từ server
+          alertBox.className = 'alert error';
+          alertBox.textContent = '❌ ' + result.message;
         }
       } catch (error) {
-        btn.classList.remove("loading");
-        btn.innerText = "Thử Lại 🔄";
-        alertBox.className = "alert error";
-        alertBox.innerText = "❌ Lỗi kết nối: " + error.message;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btnText.textContent = 'Thử Lại 🔄';
+        isSubmitting = false;
+
+        alertBox.className = 'alert error';
+        alertBox.textContent = '❌ Lỗi kết nối: ' + error.message;
       }
+    }
+
+    // ============================================
+    //  [E] SUCCESS OVERLAY
+    // ============================================
+    function showSuccessOverlay() {
+      document.getElementById('successOverlay').classList.add('show');
+    }
+
+    function closeSuccessOverlay() {
+      document.getElementById('successOverlay').classList.remove('show');
+    }
+
+    // Đóng overlay khi click bên ngoài card
+    document.getElementById('successOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeSuccessOverlay();
+    });
+
+    // ============================================
+    //  [E] CONFETTI EFFECT
+    // ============================================
+    function resizeConfettiCanvas() {
+      const canvas = document.getElementById('confettiCanvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      const confettiPieces = [];
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFE66D', '#FF8A5C', '#A78BFA', '#34D399', '#F472B6'];
+
+      // Tạo 100 mảnh confetti
+      for (let i = 0; i < 100; i++) {
+        confettiPieces.push({
+          x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+          y: canvas.height / 2,
+          w: Math.random() * 10 + 5,
+          h: Math.random() * 6 + 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 15,
+          vy: Math.random() * -18 - 5,
+          rotation: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 15,
+          gravity: 0.4,
+          opacity: 1
+        });
+      }
+
+      let frame = 0;
+      const maxFrames = 150;
+
+      function animate() {
+        if (frame > maxFrames) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        confettiPieces.forEach(p => {
+          p.x += p.vx;
+          p.vy += p.gravity;
+          p.y += p.vy;
+          p.rotation += p.rotationSpeed;
+          p.vx *= 0.98;
+
+          if (frame > maxFrames * 0.7) {
+            p.opacity = Math.max(0, 1 - (frame - maxFrames * 0.7) / (maxFrames * 0.3));
+          }
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.globalAlpha = p.opacity;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        });
+
+        frame++;
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
+
+    // ============================================
+    //  [F] HISTORY PANEL
+    // ============================================
+    let historyLoaded = false;
+
+    function toggleHistory() {
+      const btn = document.getElementById('btnHistory');
+      const panel = document.getElementById('historyPanel');
+
+      btn.classList.toggle('open');
+      panel.classList.toggle('open');
+
+      // Chỉ load lần đầu hoặc khi mở lại
+      if (panel.classList.contains('open')) {
+        loadHistory();
+      }
+    }
+
+    async function loadHistory() {
+      const panel = document.getElementById('historyPanel');
+      panel.innerHTML = '<div class="history-loading">⏳ Đang tải lịch sử...</div>';
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL + '?action=history', {
+          redirect: 'follow'
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          panel.innerHTML = '<div class="history-empty">❌ ' + result.message + '</div>';
+          return;
+        }
+
+        if (!result.data || result.data.length === 0) {
+          panel.innerHTML = '<div class="history-empty">📭 Chưa có task nào được gửi.</div>';
+          return;
+        }
+
+        let html = '';
+        result.data.forEach(item => {
+          const isHighPriority = item.priority && item.priority.includes('Cao');
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <span class="history-item-title">📋 ${escapeHtml(item.task_name)}</span>
+                <span class="history-item-time">${escapeHtml(item.timestamp)}</span>
+              </div>
+              <div class="history-item-meta">
+                <span class="badge badge-member">👤 ${escapeHtml(item.member_name)}</span>
+                <span class="badge badge-dept">🏢 ${escapeHtml(item.department)}</span>
+                <span class="badge badge-status">${escapeHtml(item.status)}</span>
+                ${isHighPriority ? '<span class="badge badge-priority-high">🚨 Ưu tiên cao</span>' : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        html += `<div class="history-total">Hiển thị ${result.data.length} / ${result.total} task</div>`;
+        panel.innerHTML = html;
+        historyLoaded = true;
+
+      } catch (error) {
+        panel.innerHTML = '<div class="history-empty">❌ Không thể kết nối: ' + error.message + '</div>';
+      }
+    }
+
+    // Utility: Escape HTML đề phòng XSS
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
   </script>
 </body>
