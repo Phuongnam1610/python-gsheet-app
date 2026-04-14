@@ -4,6 +4,7 @@ import os
 import re
 
 DEPLOY_ID = "AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q"
+SHEET_ID = "1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g"
 
 def check_tool(name, cmd):
     try:
@@ -56,6 +57,33 @@ def build_docs():
     print("[SUCCESS] Building docs - Success!")
     return True
 
+def generate_links_file():
+    print(f"\n[RUN] Generating deployed_links.txt...")
+    try:
+        git_remote = subprocess.check_output("git remote get-url origin", shell=True, text=True).strip()
+        if "github.com/" in git_remote:
+            parts = git_remote.split("github.com/")[-1].replace(".git", "").split("/")
+            gh_username = parts[0]
+            gh_repo = parts[1]
+            gh_pages_url = f"https://{gh_username}.github.io/{gh_repo}/"
+        else:
+            gh_pages_url = "https://[YOUR_USERNAME].github.io/[YOUR_REPO]/"
+    except:
+        gh_pages_url = "https://[YOUR_USERNAME].github.io/[YOUR_REPO]/"
+        
+    links_content = f"""=== DEPLOYED LINKS ===
+Generated after last deployment.
+
+Apps Script Web App: https://script.google.com/macros/s/{DEPLOY_ID}/exec
+Google Sheet: https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit
+GitHub Pages (Home): {gh_pages_url}
+GitHub Pages (Dashboard): {gh_pages_url}dashboard.html
+"""
+    with open("deployed_links.txt", "w", encoding="utf-8") as f:
+        f.write(links_content)
+    print("[SUCCESS] Generating deployed_links.txt - Success!")
+    return True
+
 def push_and_deploy():
     print("=" * 60)
     print(">>> FULL DEPLOY: Apps Script + GitHub Pages")
@@ -79,6 +107,9 @@ def push_and_deploy():
 
     # Step 3: Build docs and Git commit & push
     build_docs()
+    
+    # Generates links file mapped to github pages
+    generate_links_file()
     
     run("Git add", "git add .")
     run("Git commit", 'git commit -m "Auto-deploy: update source and docs" --allow-empty')
