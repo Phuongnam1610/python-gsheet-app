@@ -1,66 +1,70 @@
 var SHEET_ID = '1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g';
-var SECRET_KEY = 'TASK_RPT_2026_SECURE';
 
 function doGet(e) {
-  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : '';
+  var page = e.parameter.page;
+  var action = e.parameter.action;
 
-  if (action === 'history') {
-    return getHistory(e);
-  }
-
-  if (action === 'dashboard') {
+  // External API calls (Github Pages)
+  if (action === 'getDashboardData') {
     return getDashboardData(e);
   }
-
-  // Mặc định: Trả về file HTML giao diện Form
-  return HtmlService.createHtmlOutputFromFile('index')
-      .setTitle('Báo cáo & Quản lý Task Nhóm')
+  if (action === 'getHistory') {
+    return getHistory(e);
+  }
+  
+  if (page === 'dashboard') {
+    return HtmlService.createHtmlOutputFromFile('dashboard')
+      .setTitle('Dashboard Thống Kê Task')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
+
+  // Mặc định trả về trang báo cáo (Form) cho web app nội bộ
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('Báo cáo & Quản lý Task Nhóm')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-// API Endpoint: Nhận dữ liệu từ frontend bên ngoài qua fetch()
+// Hàm hỗ trợ nhận request từ các domain khác (ví dụ: host trên Github Pages)
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    var params = JSON.parse(e.postData.contents);
+    var action = params.action;
+    var data = params.data;
+    var result = {};
 
-    // ✅ Xác thực secret key chống spam
-    if (!data._key || data._key !== SECRET_KEY) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        message: "Yêu cầu không hợp lệ. Vui lòng sử dụng form chính thức."
-      })).setMimeType(ContentService.MimeType.JSON);
+    if (action === "submitTask") {
+      result = submitTask(data);
+    } else if (action === "loginUser") {
+      result = loginUser(data.username, data.password);
+    } else if (action === "updateContactId") {
+      result = updateContactId(data.username, data.contactId);
+    } else {
+      result = { success: false, message: "Action không hợp lệ" };
     }
 
-    delete data._key;
-
-    var result = submitTask(data);
     return ContentService.createTextOutput(JSON.stringify(result))
-        .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      message: "Lỗi xử lý request: " + error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Lỗi doPost: " + error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-// Hàm xử lý chính
+function getScriptUrl() {
+  return ScriptApp.getService().getUrl();
+}
+
+// Đây là hàm sẽ được gọi từ Frontend bằng google.script.run
 function submitTask(formObject) {
   try {
-    if (!formObject.member_name || !formObject.task_name || !formObject.department) {
-      return { success: false, message: "Vui lòng điền đầy đủ: Thành viên, Ban phụ trách và Tên task." };
-    }
-    if (!formObject.status || !formObject.priority) {
-      return { success: false, message: "Vui lòng chọn Trạng thái và Mức ưu tiên." };
-    }
-
-    formObject.member_name = formObject.member_name.toString().trim();
-    formObject.task_name = formObject.task_name.toString().trim();
-    formObject.department = formObject.department.toString().trim();
+    formObject.member_name = (formObject.member_name || '').toString().trim();
+    formObject.task_name = (formObject.task_name || '').toString().trim();
+    formObject.department = (formObject.department || '').toString().trim();
     formObject.task_desc = (formObject.task_desc || '').toString().trim().substring(0, 500);
-    formObject.status = formObject.status.toString().trim();
-    formObject.priority = formObject.priority.toString().trim();
+    formObject.status = (formObject.status || '').toString().trim();
+    formObject.priority = (formObject.priority || '').toString().trim();
     formObject.deadline = (formObject.deadline || '').toString().trim();
 
     if (formObject.task_name.length < 3) {
@@ -68,8 +72,9 @@ function submitTask(formObject) {
     }
 
     var ss = SpreadsheetApp.openById(SHEET_ID);
-    var sheet = ss.getSheets()[0];
+    var sheet = ss.getSheets()[0]; // Truy cập trang tính đầu tiên
 
+    // Nếu sheet còn trống hoàn toàn, ta tự động tạo tiêu đề Header cho xịn
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến']);
       sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
@@ -84,6 +89,7 @@ function submitTask(formObject) {
       }
     }
 
+    // Ghi một dòng mới xuống dưới cùng của Sheet
     var timestamp = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm:ss");
 
     sheet.appendRow([
@@ -120,7 +126,7 @@ function getHistory(e) {
     var numRows = lastRow - startRow + 1;
     var data = sheet.getRange(startRow, 1, numRows, 8).getValues();
 
-    var entries = data.map(function(row) {
+    var entries = data.map(function (row) {
       return {
         timestamp: safeFormatDate(row[0], "dd/MM/yyyy HH:mm"),
         member_name: row[1] || '',
@@ -257,5 +263,79 @@ function safeFormatDate(val, format) {
     return Utilities.formatDate(d, "GMT+7", format);
   } catch (e) {
     return val ? val.toString() : '';
+  }
+}
+
+// ========================
+// PHẦN QUẢN LÝ NGƯỜI DÙNG (AUTH & MAPPING)
+// ========================
+
+// Hàm kiểm tra/tạo sheet Users
+function getUsersSheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Users");
+  if (!sheet) {
+    sheet = ss.insertSheet("Users");
+    sheet.appendRow(["Tên đăng nhập", "Mật khẩu", "Họ và Tên", "Contact ID (Telegram/Discord)"]);
+    sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#4b5563").setFontColor("white");
+    
+    // Thêm dữ liệu mẫu
+    sheet.appendRow(["admin", "123456", "Nguyễn Văn Admin", ""]);
+    sheet.appendRow(["nhanviena", "123456", "Nguyễn Văn A", ""]);
+  }
+  return sheet;
+}
+
+// API: Đăng nhập
+function loginUser(username, password) {
+  try {
+    var sheet = getUsersSheet();
+    var lastRow = sheet.getLastRow();
+    
+    if (lastRow < 2) return { success: false, message: "Hệ thống chưa có tài khoản nào. Vui lòng liên hệ Admin." };
+    
+    var data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    
+    for (var i = 0; i < data.length; i++) {
+      var rowUser = data[i][0].toString().trim();
+      var rowPass = data[i][1].toString().trim();
+      
+      if (rowUser.toLowerCase() === username.toString().trim().toLowerCase() && rowPass === password.toString().trim()) {
+        return {
+          success: true,
+          data: {
+            username: rowUser,
+            name: data[i][2] || '',
+            contact_id: data[i][3] || ''
+          }
+        };
+      }
+    }
+    
+    return { success: false, message: "Tên đăng nhập hoặc mật khẩu không đúng!" };
+  } catch (error) {
+    return { success: false, message: "Lỗi hệ thống: " + error.toString() };
+  }
+}
+
+// API: Cập nhật mã Telegram/Discord
+function updateContactId(username, contactId) {
+  try {
+    var sheet = getUsersSheet();
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { success: false, message: "Hệ thống trống." };
+    
+    var data = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0].toString().trim().toLowerCase() === username.toString().trim().toLowerCase()) {
+        // Cập nhật cột 4 (Contact ID)
+        sheet.getRange(i + 2, 4).setValue(contactId.toString().trim());
+        return { success: true, message: "Cập nhật Contact ID thành công!" };
+      }
+    }
+    return { success: false, message: "Không tìm thấy user." };
+  } catch (error) {
+    return { success: false, message: "Lỗi hệ thống: " + error.toString() };
   }
 }

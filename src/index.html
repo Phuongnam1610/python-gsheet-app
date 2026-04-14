@@ -184,6 +184,60 @@
       display: block;
     }
 
+    /* Form Container Mặc định ẩn, điều khiển bằng JS */
+    .view-container {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(5px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 30px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      color: white;
+    }
+
+    .user-info-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      color: #e0e7ff;
+    }
+
+    .logout-btn {
+      color: #fca5a5;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    .readonly-input {
+      background: rgba(0, 0, 0, 0.2) !important;
+      color: #94a3b8 !important;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 600px) {
       .row { flex-direction: column; gap: 0; }
       .form-container { padding: 24px; }
@@ -192,28 +246,49 @@
 </head>
 <body>
 
-  <div class="form-container">
+  <!-- VIEW: ĐĂNG NHẬP -->
+  <div id="loginView" class="view-container form-container">
+    <div class="header-section">
+      <h2>Đăng Nhập Hệ Thống 🔒</h2>
+      <p>Vui lòng đăng nhập để bắt đầu báo cáo task</p>
+    </div>
+    
+    <div id="loginAlertBox" class="alert"></div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Tên đăng nhập</label>
+        <input type="text" id="username" class="form-control" placeholder="Nhập tên đăng nhập" required>
+      </div>
+      <div class="form-group">
+        <label>Mật khẩu</label>
+        <input type="password" id="password" class="form-control" placeholder="Nhập mật khẩu" required>
+      </div>
+      <button type="submit" id="btnLogin" class="btn-submit">Đăng Nhập Đi Vào ➜</button>
+    </form>
+  </div>
+
+  <!-- VIEW: BÁO CÁO TASK -->
+  <div id="reportView" class="view-container form-container">
     <div class="header-section">
       <h2>Báo Cáo Task 🔥</h2>
       <p>Hệ thống tự động đồng bộ hóa lên Sheet quản lý.</p>
     </div>
 
+    <div style="text-align: center;">
+      <div class="user-info-badge">
+        👤 Xin chào: <span id="displayUserName" style="font-weight: 700; color: #fff;">...</span>
+        <a class="logout-btn" onclick="handleLogout()">Đăng xuất</a>
+      </div>
+    </div>
+
     <div id="alertBox" class="alert"></div>
 
     <form id="taskForm" onsubmit="handleFormSubmit(event)">
-      
       <div class="row">
         <div class="form-group col">
           <label>Thành viên thực hiện</label>
-          <select name="member_name" class="form-control" required>
-            <option value="" disabled selected>— Chọn thành viên —</option>
-            <option value="Nguyễn Văn A">Nguyễn Văn A</option>
-            <option value="Trần Thị B">Trần Thị B</option>
-            <option value="Lê Văn C">Lê Văn C</option>
-            <option value="Phạm Thị D">Phạm Thị D</option>
-            <option value="Hoàng Văn E">Hoàng Văn E</option>
-            <option value="Khách/Thực tập sinh">Khách/Thực tập sinh</option>
-          </select>
+          <input type="text" name="member_name" id="member_name_input" class="form-control readonly-input" readonly required>
         </div>
 
         <div class="form-group col">
@@ -235,18 +310,18 @@
 
       <div class="form-group">
         <label>Tên Công Việc (Task)</label>
-        <input type="text" name="task_name" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required>
+        <input type="text" name="task_name" id="task_name_input" class="form-control" placeholder="Ví dụ: Thiết kế banner sự kiện khai giảng" required>
       </div>
 
       <div class="form-group">
         <label>Chi tiết công việc / Khó khăn (Nếu có)</label>
-        <textarea name="task_desc" class="form-control" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
+        <textarea name="task_desc" id="task_desc_input" class="form-control" placeholder="Mô tả kỹ hơn những gì đang làm, hay những vướng mắc cần leader support..."></textarea>
       </div>
 
       <div class="row">
         <div class="form-group col">
           <label>Trạng thái</label>
-          <select name="status" class="form-control" required>
+          <select name="status" id="status_input" class="form-control" required>
             <option value="Mới bắt đầu">Mới bắt đầu</option>
             <option value="Đang tiến hành">Đang tiến hành</option>
             <option value="Bị nghẽn (Cần hỗ trợ)">Bị nghẽn (Cần hỗ trợ)</option>
@@ -256,7 +331,7 @@
 
         <div class="form-group col">
           <label>Mức độ ưu tiên</label>
-          <select name="priority" class="form-control" required>
+          <select name="priority" id="priority_input" class="form-control" required>
             <option value="Sắp xếp sau (Thấp)">Sắp xếp sau (Thấp)</option>
             <option value="Bình thường" selected>Bình thường</option>
             <option value="Gấp gọn (Cao) 🚨">Gấp gọn (Cao) 🚨</option>
@@ -266,58 +341,249 @@
 
       <div class="form-group">
         <label>Deadline dự kiến</label>
-        <input type="date" name="deadline" class="form-control">
+        <input type="date" name="deadline" id="deadline_input" class="form-control">
       </div>
 
       <button type="submit" id="submitBtn" class="btn-submit">
         Gửi Báo Cáo Task Tham Gia 🚀
       </button>
-
     </form>
   </div>
 
+  <!-- POPUP: ĐĂNG KÝ CONTACT ID -->
+  <div id="contactModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 10px;">Cài Đặt Nhận Thông Báo 🔔</h3>
+      <p style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
+        Để nhận tin nhắn khi Task sắp trễ hạn, vui lòng cung cấp mã Telegram Chat ID (hoặc Discord User ID) của bạn.
+      </p>
+      
+      <div id="modalAlert" class="alert"></div>
+
+      <div class="form-group" style="text-align: left;">
+        <label>Mã Contact ID</label>
+        <input type="text" id="contactIdInput" class="form-control" placeholder="Nhập ID tại đây..." required>
+      </div>
+      
+      <button onclick="saveContact()" id="btnSaveContact" class="btn-submit">Lưu Cấu Hình Nhận Tin</button>
+      <button onclick="closeModal()" class="btn-submit" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); margin-top: 10px; color: #fff;">Bỏ qua lúc này</button>
+    </div>
+  </div>
+
   <script>
+    // MỤC CẤU HÌNH CHO GITHUB PAGES
+    // Điền Link Apps Script "Web App" của bạn vào đây (Link kết thúc bằng /exec)
+    const APP_SCRIPT_URL = ""; 
+
+    // --- KHỞI TẠO VÀ KIỂM TRA SESSION ---
+    let currentUser = null;
+
+    window.onload = () => {
+      const savedSession = localStorage.getItem('task_app_user');
+      if (savedSession) {
+        try {
+          currentUser = JSON.parse(savedSession);
+          showReportView();
+        } catch(e) {
+          showLoginView();
+        }
+      } else {
+        showLoginView();
+      }
+    };
+
+    function showLoginView() {
+      document.getElementById('loginView').style.display = 'block';
+      document.getElementById('reportView').style.display = 'none';
+      document.getElementById('contactModal').style.display = 'none';
+    }
+
+    function showReportView() {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('reportView').style.display = 'block';
+      
+      // Khóa cứng tên hiển thị + Field ẩn
+      document.getElementById('displayUserName').innerText = currentUser.name;
+      document.getElementById('member_name_input').value = currentUser.name;
+
+      // Kiểm tra xem user này đã nhập Contact ID chưa, nếu chưa bắt nhập
+      if (!currentUser.contact_id || currentUser.contact_id.trim() === '') {
+        setTimeout(() => {
+          document.getElementById('contactModal').style.display = 'flex';
+        }, 1000);
+      }
+    }
+
+    // --- HÀM GỌI API CHUNG TƯƠNG THÍCH ĐA MÔI TRƯỜNG ---
+    function callBackendAPI(action, dataObj, onSuccess, onError) {
+      // Môi trường Apps Script Native
+      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
+        if (action === "loginUser") {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
+            .loginUser(dataObj.username, dataObj.password);
+        } else if (action === "updateContactId") {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
+            .updateContactId(dataObj.username, dataObj.contactId);
+        } else if (action === "submitTask") {
+          google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onError)
+            .submitTask(dataObj);
+        }
+      } 
+      // Môi trường GitHub Pages / External host
+      else if (APP_SCRIPT_URL !== "") {
+        fetch(APP_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: action, data: dataObj })
+        })
+        .then(res => res.json())
+        .then(data => onSuccess(data))
+        .catch(err => onError(err));
+      } 
+      // Môi trường Test (Mock)
+      else {
+        setTimeout(() => {
+          if (action === "loginUser") {
+            onSuccess({ success: true, data: { username: dataObj.username, name: 'Tài khoản Test', contact_id: '' } });
+          } else {
+            onSuccess({ success: true, message: "Thành công (Mock)" });
+          }
+        }, 800);
+      }
+    }
+
+    // --- HÀM XỬ LÝ ĐĂNG NHẬP ---
+    function handleLogin(event) {
+      event.preventDefault();
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const btn = document.getElementById('btnLogin');
+      const box = document.getElementById('loginAlertBox');
+
+      btn.classList.add('loading');
+      btn.innerText = "Đang kiểm tra...";
+      box.style.display = 'none';
+
+      callBackendAPI("loginUser", { username: u, password: p }, 
+        (res) => {
+          btn.classList.remove('loading');
+          btn.innerText = "Đăng Nhập Đi Vào ➜";
+          if (res.success) {
+            currentUser = res.data;
+            localStorage.setItem('task_app_user', JSON.stringify(currentUser));
+            showReportView();
+          } else {
+            box.className = "alert error";
+            box.innerText = res.message;
+            box.style.display = 'block';
+          }
+        }, 
+        (err) => {
+          btn.classList.remove('loading');
+          btn.innerText = "Đăng Nhập Đi Vào ➜";
+          box.className = "alert error";
+          box.innerText = "Lỗi kết nối: " + err;
+          box.style.display = 'block';
+        }
+      );
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('task_app_user');
+      currentUser = null;
+      document.getElementById('loginForm').reset();
+      showLoginView();
+    }
+
+    // --- HÀM XỬ LÝ LƯU THÔNG BÁO ---
+    function closeModal() {
+      document.getElementById('contactModal').style.display = 'none';
+    }
+
+    function saveContact() {
+      const cid = document.getElementById('contactIdInput').value;
+      const btn = document.getElementById('btnSaveContact');
+      const alertBox = document.getElementById('modalAlert');
+
+      if(!cid.trim()) {
+        alertBox.className = "alert error";
+        alertBox.innerText = "Vui lòng nhập ID hợp lệ!";
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.innerText = "Đang lưu...";
+
+      callBackendAPI("updateContactId", { username: currentUser.username, contactId: cid },
+        (res) => {
+          btn.classList.remove('loading');
+          btn.innerText = "Lưu Cấu Hình Nhận Tin";
+          if(res.success) {
+            currentUser.contact_id = cid;
+            localStorage.setItem('task_app_user', JSON.stringify(currentUser));
+            alertBox.className = "alert success";
+            alertBox.innerText = "Đã lưu thành công!";
+            setTimeout(() => closeModal(), 1500);
+          } else {
+            alertBox.className = "alert error";
+            alertBox.innerText = res.message;
+          }
+        },
+        (err) => {
+          btn.classList.remove('loading');
+          btn.innerText = "Thử lại";
+          alertBox.className = "alert error";
+          alertBox.innerText = "Lỗi kết nối: " + err;
+        }
+      );
+    }
+
+    // --- HÀM XỬ LÝ SUBMIT REPORT ---
     function handleFormSubmit(event) {
-      event.preventDefault(); // Tránh load lại trang
+      event.preventDefault(); 
       
       const form = document.getElementById("taskForm");
       const btn = document.getElementById("submitBtn");
       const alertBox = document.getElementById("alertBox");
       
-      // Chuyển UI sang trạng thái loading
       btn.innerText = "Đang gửi dữ liệu...";
       btn.classList.add("loading");
       alertBox.className = "alert";
       alertBox.innerText = "";
-
-      // Gói gọn data từ form  
+      alertBox.style.display = 'none';
+ 
       const formData = new FormData(form);
       const dataObj = {};
       formData.forEach((value, key) => (dataObj[key] = value));
 
-      // Gọi API Apps Script Backend
-      google.script.run
-        .withSuccessHandler(function(response) {
-            btn.classList.remove("loading");
-            btn.innerText = "Gửi Báo Cáo Task Tham Gia 🚀";
+      callBackendAPI("submitTask", dataObj,
+        (res) => {
+          btn.classList.remove("loading");
+          btn.innerText = "Gửi Báo Cáo Task Tham Gia 🚀";
+          if(res.success) {
+            alertBox.className = "alert success";
+            alertBox.innerText = "🎉 Cập nhật thành công! Task đã lên Google Sheet.";
+            alertBox.style.display = 'block';
             
-            if(response.success) {
-               alertBox.className = "alert success";
-               alertBox.innerText = "🎉 Cập nhật thành công! Task của bạn đã lên Google Sheet.";
-               form.reset(); // Xóa form điền mới
-               setTimeout(() => alertBox.className = "alert", 5000);
-            } else {
-               alertBox.className = "alert error";
-               alertBox.innerText = "❌ Lỗi: " + response.message;
-            }
-        })
-        .withFailureHandler(function(error) {
-            btn.classList.remove("loading");
-            btn.innerText = "Thử Lại";
+            document.getElementById('task_name_input').value = "";
+            document.getElementById('task_desc_input').value = "";
+            document.getElementById('deadline_input').value = "";
+            
+            setTimeout(() => alertBox.style.display = 'none', 5000);
+          } else {
             alertBox.className = "alert error";
-            alertBox.innerText = "❌ Lỗi mạng hoặc Script không hợp lệ: " + error.message;
-        })
-        .submitTask(dataObj);
+            alertBox.innerText = "❌ Lỗi: " + res.message;
+            alertBox.style.display = 'block';
+          }
+        },
+        (err) => {
+          btn.classList.remove("loading");
+          btn.innerText = "Thử Lại";
+          alertBox.className = "alert error";
+          alertBox.innerText = "❌ Lỗi mạng: " + err;
+          alertBox.style.display = 'block';
+        }
+      );
     }
   </script>
 </body>
