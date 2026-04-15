@@ -191,15 +191,16 @@ function getDashboardData(e) {
     var lastRowUsers = usersSheet.getLastRow();
     var allUsers = [];
     if (lastRowUsers >= 2) {
-      var uRaw = usersSheet.getRange(2, 1, lastRowUsers - 1, 6).getValues();
+      var uRaw = usersSheet.getRange(2, 1, lastRowUsers - 1, 7).getValues();
       for (var k = 0; k < uRaw.length; k++) {
-        var uname = uRaw[k][3].toString().trim();
+        var uname = uRaw[k][1].toString().trim();
         allUsers.push({
-          mnv: uRaw[k][0].toString(),
-          username: uRaw[k][1].toString(),
-          name: uname ? uname : uRaw[k][1].toString(),
-          discord: uRaw[k][4].toString(),
-          gmail: uRaw[k][5].toString()
+          mnv: uRaw[k][0].toString().trim(),
+          username: uname,
+          name: uname,
+          discord: uRaw[k][4] ? uRaw[k][4].toString().trim() : '',
+          gmail: uRaw[k][5] ? uRaw[k][5].toString().trim() : '',
+          department: uRaw[k][6] ? uRaw[k][6].toString().trim() : ''
         });
       }
     }
@@ -347,19 +348,21 @@ function loginUser(username, password) {
 
     for (var i = 0; i < data.length; i++) {
       var rowMnv = data[i][0].toString().trim();
-      var rowUser = data[i][1].toString().trim();
+      var rowName = data[i][1].toString().trim();
       var rowPass = data[i][2].toString().trim();
 
-      if (rowUser.toLowerCase() === username.toString().trim().toLowerCase() && rowPass === password.toString().trim()) {
+      // Đăng nhập bằng MNV hoặc Tên (Hỗ trợ linh hoạt)
+      if ((rowMnv.toLowerCase() === username.toString().trim().toLowerCase() || rowName.toLowerCase() === username.toString().trim().toLowerCase()) && rowPass === password.toString().trim()) {
         return {
           success: true,
           data: {
             mnv: rowMnv,
-            username: rowUser,
-            name: data[i][3] || '',
+            username: rowName,
+            name: rowName,
+            role: (data[i][3] || 'user').toString().trim().toLowerCase(),
             discord_id: data[i][4] || '',
             gmail: data[i][5] || '',
-            role: (data[i][6] || 'user').toString().trim().toLowerCase()
+            department: data[i][6] || ''
           }
         };
       }
@@ -378,10 +381,15 @@ function updateUserInfo(username, discord, gmail) {
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) return { success: false, message: "Hệ thống trống." };
 
-    var data = sheet.getRange(2, 2, lastRow - 1, 1).getValues(); // Cột 2 là Username
+    var data = sheet.getRange(2, 1, lastRow - 1, 1).getValues(); // Cột 1 là MNV
+    var names = sheet.getRange(2, 2, lastRow - 1, 1).getValues(); // Cột 2 là Tên
 
     for (var i = 0; i < data.length; i++) {
-      if (data[i][0].toString().trim().toLowerCase() === username.toString().trim().toLowerCase()) {
+      var _mnv = data[i][0].toString().trim().toLowerCase();
+      var _name = names[i][0].toString().trim().toLowerCase();
+      var _usr = username.toString().trim().toLowerCase();
+      
+      if (_mnv === _usr || _name === _usr) {
         // Cập nhật cột 5 (Discord) và 6 (Gmail)
         sheet.getRange(i + 2, 5).setValue(discord.toString().trim());
         sheet.getRange(i + 2, 6).setValue(gmail.toString().trim());
