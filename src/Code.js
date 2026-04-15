@@ -51,7 +51,7 @@ function doPost(e) {
     } else if (action === "updateUserInfo") {
       result = updateUserInfo(data.username, data.discord, data.gmail);
     } else if (action === "sendQuickMessage") {
-      result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail);
+      result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail, data.targetEmails, data.targetDiscords);
     } else {
       result = { success: false, message: "Action không hợp lệ" };
     }
