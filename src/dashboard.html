@@ -38,6 +38,34 @@
       margin: 0 auto;
     }
     
+    /* LOGIN FORM STYLES */
+    .form-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      margin: 80px auto;
+    }
+    .header-section {
+      text-align: center;
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .header-section h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; color: #fff;}
+    .header-section p { font-size: 14px; color: var(--text-muted); }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--text-main); }
+    .btn-submit {
+      width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 8px;
+      background: var(--accent); color: white; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-submit:hover { background: var(--accent-hover); }
+    .alert-box { padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; text-align: center; border: 1px solid transparent; }
+    
     /* HEADER */
     .header {
       display: flex;
@@ -247,6 +275,29 @@
 </head>
 <body>
 
+  <!-- VIEW: ĐĂNG NHẬP (Dành cho Dashboard) -->
+  <div id="loginView" style="display: none;" class="form-container">
+    <div class="header-section">
+      <h2>Đăng Nhập Quản Trị 🔒</h2>
+      <p>Vui lòng xác thực để truy cập Dashboard</p>
+    </div>
+    <div id="loginAlertBox" class="alert-box"></div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Tên đăng nhập</label>
+        <input type="text" id="username" class="form-control" placeholder="Nhập tên đăng nhập" required>
+      </div>
+      <div class="form-group">
+        <label>Mật khẩu</label>
+        <input type="password" id="password" class="form-control" placeholder="Nhập mật khẩu" required>
+      </div>
+      <button type="submit" id="btnLogin" class="btn-submit">Đăng Nhập ➜</button>
+    </form>
+    <div style="text-align:center; margin-top:20px;">
+       <a href="?page=report" id="linkToReport" style="color:var(--text-muted); font-size:13px; text-decoration:none;"><span style="color:var(--accent);">← Đi đến trang Báo Cáo</span></a>
+    </div>
+  </div>
+
   <div id="loader">
     <div class="spinner"></div>
     <h3 style="font-weight: 500; color: var(--text-muted);">Đang tải dữ liệu...</h3>
@@ -448,6 +499,8 @@
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).saveEmailTemplate(dataObj.id, dataObj.name, dataObj.subject, dataObj.body);
            } else if (action === "deleteTemplate") {
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).deleteEmailTemplate(dataObj.id);
+           } else if (action === "loginUser") {
+              google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).loginUser(dataObj.username, dataObj.password);
            }
         });
       } else if (APP_SCRIPT_URL !== "") {
@@ -885,21 +938,27 @@
         .catch(e => alert("Lỗi kết nối: " + e));
     }
 
-    window.onload = () => {
+    function initDashboard() {
+      // Bật loader nếu đã tắt
+      document.getElementById('loader').style.display = 'flex';
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'none';
+
       // Cơ Chế Ép Đăng Nhập
       const userStr = localStorage.getItem('task_app_user');
       let isAdmin = false;
       
       if (!userStr) {
-        document.getElementById('loader').innerHTML = `
-          <div style="text-align: center; color: var(--text-main);">
-            <h2 style="margin-bottom:15px;">🔒 Bạn Chưa Đăng Nhập</h2>
-            <p style="color:var(--text-muted); margin-bottom:25px;">Vui lòng đăng nhập để truy cập Dashboard.</p>
-            <button onclick="goToLogin()" class="btn btn-primary">Đi đến trang Đăng Nhập</button>
-          </div>
-        `;
-        document.getElementById('loader').style.backgroundColor = "rgba(15, 23, 42, 0.95)";
-        return; // Ngăn chặn load dữ liệu
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('loginView').style.display = 'block';
+        if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
+           google.script.run.withSuccessHandler(function(url) {
+             document.getElementById('linkToReport').href = url + '?page=report';
+           }).getScriptUrl();
+        } else {
+           document.getElementById('linkToReport').href = 'index.html';
+        }
+        return; // Dừng lại ở form Đăng Nhập
       }
 
       try {
@@ -953,16 +1012,43 @@
           });
         }, 1200);
       }
-    };
-    function goToLogin() {
-      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
-        google.script.run.withSuccessHandler(function(url) {
-          window.top.location.href = url + '?page=report';
-        }).getScriptUrl();
-      } else {
-        window.location.href = "index.html"; 
-      }
     }
+    
+    function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      if(!u || !p) return;
+      
+      const btn = document.getElementById('btnLogin');
+      const box = document.getElementById('loginAlertBox');
+      btn.innerText = "Đang kiểm tra..."; btn.disabled = true;
+      box.style.display = "none";
+      
+      callSystemAPI("loginUser", {username: u, password: p}).then(res => {
+         btn.innerText = "Đăng Nhập ➜"; btn.disabled = false;
+         if (res.success) {
+            localStorage.setItem('task_app_user', JSON.stringify(res.data));
+            box.style.display = "block";
+            box.style.background = "rgba(16, 185, 129, 0.15)";
+            box.style.borderColor = "rgba(16, 185, 129, 0.3)";
+            box.style.color = "var(--color-success)";
+            box.innerText = "Đăng nhập thành công, đang tải...";
+            setTimeout(() => { initDashboard(); }, 500);
+         } else {
+            box.style.display = "block";
+            box.style.background = "rgba(239, 68, 68, 0.15)";
+            box.style.borderColor = "rgba(239, 68, 68, 0.3)";
+            box.style.color = "var(--color-danger)";
+            box.innerText = "❌ " + res.message;
+         }
+      }).catch(err => {
+         btn.innerText = "Đăng Nhập ➜"; btn.disabled = false;
+         alert("Lỗi kết nối: " + err);
+      });
+    }
+
+    window.onload = initDashboard;
   </script>
 </body>
 </html>
