@@ -51,7 +51,13 @@ function doPost(e) {
     } else if (action === "updateUserInfo") {
       result = updateUserInfo(data.username, data.discord, data.gmail);
     } else if (action === "sendQuickMessage") {
-      result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail, data.targetEmails, data.targetDiscords);
+      result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail, data.targetEmails, data.targetDiscords, data.subject);
+    } else if (action === "getTemplates") {
+      result = getEmailTemplates();
+    } else if (action === "saveTemplate") {
+      result = saveEmailTemplate(data.id, data.name, data.subject, data.body);
+    } else if (action === "deleteTemplate") {
+      result = deleteEmailTemplate(data.id);
     } else {
       result = { success: false, message: "Action không hợp lệ" };
     }
@@ -325,7 +331,7 @@ function loginUser(username, password) {
 
     if (lastRow < 2) return { success: false, message: "Sai tài khoản, mật khẩu, Vui lòng liên hệ admin" };
 
-    var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+    var data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
 
     for (var i = 0; i < data.length; i++) {
       var rowMnv = data[i][0].toString().trim();
@@ -340,7 +346,8 @@ function loginUser(username, password) {
             username: rowUser,
             name: data[i][3] || '',
             discord_id: data[i][4] || '',
-            gmail: data[i][5] || ''
+            gmail: data[i][5] || '',
+            role: (data[i][6] || 'user').toString().trim().toLowerCase()
           }
         };
       }
@@ -509,7 +516,7 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
 }
 
 // API: Gửi thông báo nhanh từ Dashboard
-function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetDiscords) {
+function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetDiscords, subject) {
   var debugLog = [];
   function log(msg) { console.log(msg); debugLog.push(msg); }
   try {
@@ -614,8 +621,8 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
 
         var emailOptions = {
           to: primaryEmail,
-          subject: "📢 THÔNG BÁO TỪ QUẢN LÝ TRẠM",
-          body: "Đây là thông báo từ hệ thống dành cho bạn:\n\n" + message + "\n\n---\nTin nhắn tự động từ Trạm Quản Lý Tác Vụ."
+          subject: subject || "📢 THÔNG BÁO TỪ QUẢN LÝ TRẠM",
+          body: message || ""
         };
         if (bccEmails.length > 0) {
           emailOptions.bcc = bccEmails.join(",");
@@ -644,5 +651,116 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
     log("=== ❌ LỖI KHI GỬI THÔNG BÁO: " + error.toString());
     log("Stack: " + error.stack);
     return { success: false, message: "Lỗi gửi: " + error.toString(), debug_log: debugLog };
+  }
+}
+
+// ========================
+// PHẦN QUẢN LÝ MẪU EMAIL
+// ========================
+
+function checkAndInitTemplatesSheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("EmailTemplates");
+  
+  if (!sheet) {
+    sheet = ss.insertSheet("EmailTemplates");
+    var headers = ["TemplateID", "Tên Mẫu", "Tiêu Đề (Subject)", "Nội Dung (Body)"];
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+    
+    // Add default templates
+    var now = new Date().getTime();
+    sheet.appendRow([
+      "TPL_" + now,
+      "🔥 Mẫu Nhắc Nhở Họp Khẩn",
+      "📢 THÔNG BÁO: Họp Khẩn Cấp Toàn Đội",
+      "Chào mọi người,\n\nBan quản lý thông báo tổ chức một cuộc họp khẩn cấp.\n\n⏰ Thời gian:\n📍 Địa điểm / Link Meet:\n📌 Nội dung cuộc họp:\n\nYêu cầu mọi người sắp xếp công việc để có mặt đúng giờ.\n\n---\nTrân trọng,\nHệ thống Quản lý Task"
+    ]);
+    sheet.appendRow([
+      "TPL_" + (now + 1),
+      "⏳ Mẫu Cảnh Báo Trễ Hạn",
+      "🚨 CẢNH BÁO: Rút kinh nghiệm về việc chậm trễ tiến độ",
+      "Chào bạn,\n\nHệ thống ghi nhận một số đầu việc của bạn đã vượt quá thời gian cam kết nhưng chưa được hoàn thành.\n\nVui lòng báo cáo lại nguyên nhân, các khó khăn (nếu có) và thời gian dự kiến hoàn thành mới nhất để ban quản lý có thể xem xét hỗ trợ kịp thời.\n\n---\nTrân trọng,\nHệ thống Quản lý Task"
+    ]);
+    sheet.appendRow([
+      "TPL_" + (now + 2),
+      "🎉 Mẫu Thông Báo Nhanh",
+      "📢 THÔNG BÁO TỪ QUẢN LÝ TRẠM",
+      "Đây là thông báo từ hệ thống dành cho bạn:\n\n[Nhập nội dung vào đây...]\n\n---\nTin nhắn tự động từ Trạm Quản Lý Tác Vụ."
+    ]);
+  }
+  return sheet;
+}
+
+function getEmailTemplates() {
+  try {
+    var sheet = checkAndInitTemplatesSheet();
+    var lastRow = sheet.getLastRow();
+    var templates = [];
+    
+    if (lastRow > 1) {
+      var data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+      for (var i = 0; i < data.length; i++) {
+        templates.push({
+          id: data[i][0] ? data[i][0].toString() : "",
+          name: data[i][1] ? data[i][1].toString() : "",
+          subject: data[i][2] ? data[i][2].toString() : "",
+          body: data[i][3] ? data[i][3].toString() : ""
+        });
+      }
+    }
+    return { success: true, data: templates };
+  } catch (err) {
+    return { success: false, message: "Lỗi lấy mẫu email: " + err.toString() };
+  }
+}
+
+function saveEmailTemplate(id, name, subject, body) {
+  try {
+    var sheet = checkAndInitTemplatesSheet();
+    var lastRow = sheet.getLastRow();
+    
+    if (id) {
+       // Update existing
+       if (lastRow > 1) {
+         var data = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+         for (var i = 0; i < data.length; i++) {
+           if (data[i][0].toString() === id) {
+             sheet.getRange(i + 2, 2).setValue(name);
+             sheet.getRange(i + 2, 3).setValue(subject);
+             sheet.getRange(i + 2, 4).setValue(body);
+             return { success: true, message: "Cập nhật mẫu thành công!", id: id };
+           }
+         }
+       }
+    }
+    
+    // Create new
+    var newId = "TPL_" + new Date().getTime();
+    sheet.appendRow([newId, name, subject, body]);
+    return { success: true, message: "Tạo mẫu mới thành công!", id: newId };
+    
+  } catch(err) {
+    return { success: false, message: "Lỗi lưu mẫu: " + err.toString() };
+  }
+}
+
+function deleteEmailTemplate(id) {
+  try {
+    var sheet = checkAndInitTemplatesSheet();
+    var lastRow = sheet.getLastRow();
+    
+    if (lastRow > 1) {
+       var data = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+       for (var i = 0; i < data.length; i++) {
+         if (data[i][0].toString() === id) {
+           sheet.deleteRow(i + 2);
+           return { success: true, message: "Đã xóa mẫu!" };
+         }
+       }
+    }
+    return { success: false, message: "Không tìm thấy mẫu để xóa." };
+  } catch(err) {
+    return { success: false, message: "Lỗi xóa mẫu: " + err.toString() };
   }
 }
