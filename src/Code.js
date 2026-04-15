@@ -505,11 +505,18 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
 // API: Gửi thông báo nhanh từ Dashboard
 function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetDiscords) {
   try {
+    console.log("=== BẮT ĐẦU GỬI THÔNG BÁO NHANH ===");
+    console.log("Nội dung tin nhắn: ", message);
+    console.log("Tùy chọn: Gửi Discord(" + sendDiscord + "), Gửi Email(" + sendEmail + ")");
+    console.log("Target Discord IDs: ", targetDiscords);
+    console.log("Target Emails: ", targetEmails);
+
     var successD = false;
     var successE = false;
 
     // Gửi Discord Broadcast
     if (sendDiscord && DISCORD_WEBHOOK_URL !== "") {
+      console.log("-> Đang xử lý gửi Discord. Webhook URL có tồn tại.");
       var mentions = "";
       if (targetDiscords && targetDiscords.length > 0) {
          for (var j = 0; j < targetDiscords.length; j++) {
@@ -519,15 +526,18 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
            }
          }
       }
+      console.log("Danh sách mention Discord: ", mentions);
       var payload = JSON.stringify({ content: "📢 **THÔNG BÁO TỪ BAN QUẢN LÝ:**\n" + mentions + "\n" + message });
-      UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, {
+      var resD = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, {
         method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true
       });
+      console.log("=> Kết quả Discord (HTTP Code): ", resD.getResponseCode(), resD.getContentText());
       successD = true;
     }
 
     // Gửi Email Broadcast (BCC)
     if (sendEmail) {
+      console.log("-> Đang xử lý gửi Email...");
       var validEmails = [];
       if (targetEmails && targetEmails.length > 0 && targetEmails[0] === "all") {
         var sheet = getUsersSheet();
@@ -550,6 +560,7 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
         }
       }
 
+      console.log("Danh sách Email hợp lệ để gửi BCC: ", validEmails);
       if (validEmails.length > 0) {
         var bccList = validEmails.join(",");
         MailApp.sendEmail({
@@ -558,16 +569,23 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
           subject: "📢 THÔNG BÁO TỪ QUẢN LÝ TRẠM",
           body: "Đây là thông báo từ hệ thống dành cho bạn:\n\n" + message + "\n\n---\nTin nhắn tự động từ Trạm Quản Lý Tác Vụ."
         });
+        console.log("=> Đã gọi lệnh MailApp.sendEmail thành công.");
         successE = true;
+      } else {
+        console.log("=> Không có email nào hợp lệ để gửi.");
       }
     }
 
     if (!successD && !successE) {
+      console.log("=> Cảnh báo: Không có tin nhắn nào được gửi đi (do thiết lập lệnh gửi trống hoặc webhook url trống).");
       return { success: false, message: "Chưa chọn người nhận hợp lệ hoặc thiếu cấu hình (Vd: webhook trống, người nhận ko có mail)." };
     }
 
+    console.log("=== KẾT THÚC GỬI THÔNG BÁO ===");
     return { success: true, message: "Đã thiết lập gửi thông báo thành công!" };
   } catch (error) {
+    console.log("=== LỖI KHI GỬI THÔNG BÁO ===");
+    console.log(error.toString(), error.stack);
     return { success: false, message: "Lỗi gửi: " + error.toString() };
   }
 }
