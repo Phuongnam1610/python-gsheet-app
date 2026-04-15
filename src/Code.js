@@ -94,8 +94,8 @@ function submitTask(formObject) {
 
     // Nếu sheet còn trống hoàn toàn, ta tự động tạo tiêu đề Header cho xịn
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['MNV', 'Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến', 'Discord ID', 'Gmail']);
-      sheet.getRange("A1:K1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+      sheet.appendRow(['MNV', 'Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến', 'Discord ID', 'Gmail', 'Đã Nhắc Deadline?']);
+      sheet.getRange("A1:L1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
     }
 
     var lastRow = sheet.getLastRow();
@@ -121,7 +121,8 @@ function submitTask(formObject) {
       formObject.priority,
       formObject.deadline,
       formObject.discord_id || '',
-      formObject.gmail || ''
+      formObject.gmail || '',
+      ''
     ]);
 
     return { success: true, message: "Dữ liệu task đã được đẩy lên hệ thống thành công!" };
@@ -763,4 +764,122 @@ function deleteEmailTemplate(id) {
   } catch(err) {
     return { success: false, message: "Lỗi xóa mẫu: " + err.toString() };
   }
+}
+
+// ==================================
+// HỆ THỐNG CẢNH BÁO DEADLINE TỰ ĐỘNG
+// ==================================
+
+function checkDeadlinesAndNotify() {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    
+    if (lastRow <= 1) return;
+    
+    // 1. Tải Map dữ liệu Users từ tab Users để có email/discord mới nhất
+    var usersSheet = getUsersSheet();
+    var lastRowUsers = usersSheet.getLastRow();
+    var usersMap = {}; // key: mnv, value: { discord:..., gmail:... }
+    if (lastRowUsers >= 2) {
+       var uRaw = usersSheet.getRange(2, 1, lastRowUsers - 1, 6).getValues();
+       for (var k = 0; k < uRaw.length; k++) {
+          var uMnv = uRaw[k][0].toString().trim();
+          if (uMnv) {
+             usersMap[uMnv] = {
+                discord: uRaw[k][4].toString().trim(),
+                gmail: uRaw[k][5].toString().trim()
+             };
+          }
+       }
+    }
+    
+    // 2. Lấy dữ liệu Task hiện tại
+    // Cột 1: MNV, Col 3: Tên, Col 5: Task_name, Col 7: Status, Col 8: Priority, Col 9: Deadline, Col 12: Đã Nhắc
+    var data = sheet.getRange(2, 1, lastRow - 1, 12).getValues();
+    var nowObj = new Date();
+    
+    for (var i = 0; i < data.length; i++) {
+       var rowNum = i + 2;
+       var status = (data[i][6] || "").toString().toLowerCase();
+       var isNotified = (data[i][11] || "").toString().trim();
+       
+       // Bỏ qua nếu đã xong hoặc Đã nhắc rồi
+       if (status.indexOf("hoàn thành") > -1) continue;
+       if (isNotified !== "") continue; 
+       
+       var deadlineStr = (data[i][8] || "").toString().trim(); // "YYYY-MM-DD" or similar
+       if (!deadlineStr) continue;
+       
+       // Parse Date 
+       // Browser type="date" value format is YYYY-MM-DD. 
+       var parts = deadlineStr.split('-');
+       var taskDate;
+       if (parts.length === 3 && parts[0].length === 4) {
+          taskDate = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
+       } else {
+          // Thử kiểu khác nếu nhập tay
+          var t = new Date(deadlineStr);
+          if (t && !isNaN(t.getTime())) {
+             taskDate = t;
+          }
+       }
+       
+       if (taskDate) {
+          // So sánh khoảng cách => Nếu Now >= TaskDate trừ đi 2 ngày
+          var diffTime = taskDate.getTime() - nowObj.getTime();
+          var diffDays = diffTime / (1000 * 3600 * 24);
+          
+          if (diffDays <= 2.0 && diffDays > -30) {
+             // Đã lọt vào vùng cảnh báo (còn 2 ngày) hoặc Quá hạn
+             var mnv = data[i][0].toString().trim();
+             var targetEmail = (usersMap[mnv] && usersMap[mnv].gmail) ? usersMap[mnv].gmail : data[i][10].toString().trim();
+             var targetDiscord = (usersMap[mnv] && usersMap[mnv].discord) ? usersMap[mnv].discord : data[i][9].toString().trim();
+             
+             if (targetEmail || targetDiscord) {
+                var taskName = data[i][4];
+                var priority = data[i][7];
+                var msg = "⚠️ **HỆ THỐNG CẢNH BÁO CÔNG VIỆC** ⚠️\n" +
+                          "> **Công việc:** " + taskName + "\n" +
+                          "> **Hạn chót:** " + deadlineStr + " _(Trạng thái: " + (diffDays >= 0 ? 'QUÁ HẠN' : 'Tới Gần')  + ")_\n" +
+                          "> **Mức độ ưu tiên:** " + priority + "\n" +
+                          "> **Tình trạng:** " + data[i][6] + "\n\n" +
+                          "Yêu cầu bạn hãy nhanh chóng hoàn thành và báo cáo trạng thái làm việc mới nhất. Ban Quản Lý (Tự động quét)";
+                
+                sendQuickMessage(
+                   msg, 
+                   targetDiscord !== "", 
+                   targetEmail !== "", 
+                   targetEmail ? [targetEmail] : [], 
+                   targetDiscord ? [targetDiscord] : [], 
+                   "🚨 CẢNH BÁO: Bạn có Task Sắp Cận Kề / Đã Quá Hạn!"
+                );
+                
+                // Gắn cờ Đã Nhắc
+                sheet.getRange(rowNum, 12).setValue("Đã nhắc (" + Utilities.formatDate(nowObj, "GMT+7", "dd/MM HH:mm") + ")");
+             }
+          }
+       }
+    }
+  } catch(e) {
+     console.error("Lỗi checkDeadlinesAndNotify: " + e.toString());
+  }
+}
+
+// Chạy Script này thủ công 1 lần TRONG CỬA SỔ APPS SCRIPT để bật Cron (Mỗi giờ 1 lần)
+function setupHourlyDeadlineCron() {
+  // Xóa trigger cũ nếu có
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'checkDeadlinesAndNotify') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  
+  // Tạo lại Timer mỗi giờ  
+  ScriptApp.newTrigger('checkDeadlinesAndNotify')
+           .timeBased()
+           .everyHours(1)
+           .create();           
 }
