@@ -572,16 +572,16 @@ function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
   var taskSub = taskName.length > 50 ? taskName.substring(0, 47) + "..." : taskName;
-  var subject = "[CANH BAO] Cong viec qua han: " + taskSub;
-  var body = "Kính gửi " + memberName + ",\n\n" +
-             "Hệ thống Quản lý Công việc xin thông báo: Bạn đang có đầu mục công việc đã vượt quá thời hạn cam kết.\n\n" +
-             "THÔNG TIN CÔNG VIỆC QUÁ HẠN:\n" +
+  var subject = "[CANH BAO] Chay giay roi: " + taskSub;
+  var body = "Alo alo " + memberName + " ơi,\n\n" +
+             "Trạm kiểm soát không lưu vừa phát hiện một chiếc Deadline của bạn đang bốc cháy ngùn ngụt trên hệ thống!\n\n" +
+             "DANH TÍNH NẠN NHÂN (CÔNG VIỆC QUÁ HẠN):\n" +
              "- Tên công việc: " + taskName + "\n" +
-             "- Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
-             "Đề nghị bạn ưu tiên xử lý gấp đầu mục công việc trên và cập nhật trạng thái/tiến độ trực tiếp trên Hệ thống Quản trị (Dashboard) trong thời gian sớm nhất.\n\n" +
-             "Lưu ý: Việc chậm trễ báo cáo có thể ảnh hưởng đến tiến độ chung của toàn ban.\n\n" +
-             "Trân trọng,\n" +
-             "Ban Quản Trị Hệ Thống.";
+             "- Lịch dự sinh (Deadline): " + deadlineFormatted + "\n\n" +
+             "Dậy mau xách chổi dọn dẹp và cầm bình chữa cháy dập lửa (hoàn thành task) đi nhé. Nếu sếp mà thấy là bị trừ lương ráng chịu nha!\n" +
+             "Đừng quên cập nhật tiến độ lên Dashboard để vớt vát lại hình tượng.\n\n" +
+             "Thân ái và quyết thắng,\n" +
+             "Bot Nhắc Việc Không Bao Giờ Ngủ.";
              
   try {
     GmailApp.sendEmail(email, subject, body);
@@ -600,16 +600,16 @@ function sendUpcomingEmail(email, memberName, taskName, deadlineDate) {
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
   var taskSub = taskName.length > 50 ? taskName.substring(0, 47) + "..." : taskName;
-  var subject = "[NHOM NHAC NHO] Cong viec sap toi han: " + taskSub;
-  var body = "Kính gửi " + memberName + ",\n\n" +
-             "Hệ thống Quản lý Công việc gửi lời nhắc về đầu mục công việc của bạn chuẩn bị đến hạn.\n\n" +
-             "THÔNG TIN CÔNG VIỆC:\n" +
+  var subject = "[NHAC NHE] Mai nop bai rui: " + taskSub;
+  var body = "Trái đất gọi " + memberName + " nghe rõ trả lời,\n\n" +
+             "Ngày mai là ngày cúng sao giải hạn cho chiếc Deadline này rồi, bạn đã chuẩn bị đồ lễ (xong việc) chưa?\n\n" +
+             "GƯƠNG MẶT VÀNG TRONG LÀNG CHỜ ĐỢI:\n" +
              "- Tên công việc: " + taskName + "\n" +
-             "- Hạn chót (Deadline): " + deadlineFormatted + " (Ngày mai)\n\n" +
-             "Để đảm bảo đúng tiến độ dự án đề ra, vui lòng hoàn tất công việc và báo cáo kết quả trước thời hạn nêu trên.\n" +
-             "Nếu công việc đã hoàn thành hoặc đang gặp khó khăn, vui lòng cập nhật trạng thái trên Hệ thống Quản trị (Dashboard).\n\n" +
-             "Trân trọng,\n" +
-             "Ban Quản Trị Hệ Thống.";
+             "- Hẹn ngày lên thớt: " + deadlineFormatted + " (Ngày mai)\n\n" +
+             "Tranh thủ chạy rốt đa gõ nốt mấy dòng báo cáo để ngày mai ngẩng cao đầu đi làm nhé. Cố lên!\n" +
+             "Nhớ lên Dashboard cập nhật tiến độ để hệ thống biết bạn vẫn đang nỗ lực thở oxy nha.\n\n" +
+             "Người bạn đồng hành tận tụy,\n" +
+             "Hệ thống Quản Trị Deadline.";
              
   try {
     GmailApp.sendEmail(email, subject, body);
