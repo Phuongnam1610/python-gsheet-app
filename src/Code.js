@@ -58,6 +58,8 @@ function doPost(e) {
       result = saveEmailTemplate(data.id, data.name, data.subject, data.body);
     } else if (action === "deleteTemplate") {
       result = deleteEmailTemplate(data.id);
+    } else if (action === "updateTask") {
+      result = updateTask(data);
     } else {
       result = { success: false, message: "Action không hợp lệ" };
     }
@@ -94,8 +96,8 @@ function submitTask(formObject) {
 
     // Nếu sheet còn trống hoàn toàn, ta tự động tạo tiêu đề Header cho xịn
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['MNV', 'Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến', 'Discord ID', 'Gmail', 'Đã Nhắc Deadline?']);
-      sheet.getRange("A1:L1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
+      sheet.appendRow(['MNV', 'Thời gian báo cáo', 'Người thực hiện', 'Ban Tham Gia', 'Tên Báo Cáo / Task', 'Chi tiết công việc', 'Trạng thái', 'Mức ưu tiên', 'Deadline dự kiến', 'Discord ID', 'Gmail', 'Đã Nhắc Deadline?', 'Mã Task']);
+      sheet.getRange("A1:M1").setFontWeight("bold").setBackground("#3b82f6").setFontColor("white");
     }
 
     var lastRow = sheet.getLastRow();
@@ -110,6 +112,7 @@ function submitTask(formObject) {
     // Ghi một dòng mới xuống dưới cùng của Sheet
     var timestamp = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm:ss");
 
+    var taskId = "T-" + new Date().getTime().toString(36).toUpperCase() + "-" + Math.floor(Math.random() * 1000);
     sheet.appendRow([
       formObject.mnv || '',
       timestamp,
@@ -122,7 +125,8 @@ function submitTask(formObject) {
       formObject.deadline,
       formObject.discord_id || '',
       formObject.gmail || '',
-      ''
+      '',
+      taskId
     ]);
 
     return { success: true, message: "Dữ liệu task đã được đẩy lên hệ thống thành công!" };
@@ -209,7 +213,8 @@ function getDashboardData(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    var allData = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+    // Lấy 13 Cột để lấy đủ Mã Task
+    var allData = sheet.getRange(2, 1, lastRow - 1, 13).getValues();
     var total = allData.length;
 
     var byStatus = {};
@@ -248,12 +253,15 @@ function getDashboardData(e) {
       }
     }
 
-    // Recent 20 tasks (mới nhất trước)
-    var recentStart = Math.max(0, allData.length - 20);
+    // Lấy toàn bộ Task thay vì chỉ 20 task
+    var recentStart = 0;
     var recentTasks = [];
     for (var j = allData.length - 1; j >= recentStart; j--) {
       var r = allData[j];
+      var tId = (r[12] || "").toString().trim();
       recentTasks.push({
+        task_id: tId !== "" ? tId : ("FALLBACK-" + (j + 2)), // Mã Fallback cho task cũ chưa có Task ID
+        row_index: j + 2,
         mnv: r[0] || '',
         timestamp: safeFormatDate(r[1], "dd/MM/yyyy HH:mm"),
         member_name: r[2] || '',
@@ -263,6 +271,7 @@ function getDashboardData(e) {
         status: r[6] || '',
         priority: r[7] || '',
         deadline: safeFormatDate(r[8], "dd/MM/yyyy"),
+        deadline_raw: safeFormatDate(r[8], "yyyy-MM-dd"),
         discord_id: r[9] || '',
         gmail: r[10] || ''
       });
@@ -763,6 +772,62 @@ function deleteEmailTemplate(id) {
     return { success: false, message: "Không tìm thấy mẫu để xóa." };
   } catch(err) {
     return { success: false, message: "Lỗi xóa mẫu: " + err.toString() };
+  }
+}
+
+// ==================================
+// CHỈNH SỬA TASK (UPDATE)
+// ==================================
+
+function updateTask(data) {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    
+    var reqTaskId = data.taskId;
+    var fallbackRowIndex = parseInt(data.rowIndex);
+    var rowIndex = -1;
+    
+    // Tìm kiếm vị trí thực tế của Task thông qua Col 13
+    if (lastRow > 1) {
+       var allTaskIds = sheet.getRange(2, 13, lastRow - 1, 1).getValues();
+       for (var i = 0; i < allTaskIds.length; i++) {
+          if (allTaskIds[i][0] !== "" && allTaskIds[i][0] === reqTaskId) {
+             rowIndex = i + 2; 
+             break;
+          }
+       }
+    }
+    
+    if (rowIndex === -1) {
+       // Nếu không tìm thấy, dùng Fallback (áp dụng cho các dòng cũ)
+       if (reqTaskId && reqTaskId.indexOf('FALLBACK-') === 0 && fallbackRowIndex > 1) {
+          rowIndex = fallbackRowIndex;
+       } else {
+          return { success: false, message: "❌ Lỗi bảo vệ: Không thể tìm thấy Task trong cơ sở dữ liệu (Có thể task đã bị Cấp trên xoá mất)." };
+       }
+    }
+
+    if (rowIndex < 2 || rowIndex > lastRow) {
+      return { success: false, message: "Bản ghi không hợp lệ." };
+    }
+    
+    // Bảo mật: Kiểm tra MNV người request có khớp với người sở hữu không (hoặc là admin/leader)
+    var ownerMnv = sheet.getRange(rowIndex, 1).getValue().toString().trim();
+    if (data.requestUserRole !== 'admin' && data.requestUserRole !== 'leader' && data.requestUserMnv !== ownerMnv) {
+      return { success: false, message: "Bạn không có quyền sửa task của người khác! (Thiếu quyền)." };
+    }
+    
+    // Cập nhật các cột (Column 6: desc, Col 7: status, Col 8: priority, Col 9: deadline)
+    if(data.task_desc !== undefined) sheet.getRange(rowIndex, 6).setValue(data.task_desc);
+    if(data.status !== undefined) sheet.getRange(rowIndex, 7).setValue(data.status);
+    if(data.priority !== undefined) sheet.getRange(rowIndex, 8).setValue(data.priority);
+    if(data.deadline !== undefined) sheet.getRange(rowIndex, 9).setValue(data.deadline);
+    
+    return { success: true, message: "Cập nhật công việc thành công!" };
+  } catch(e) {
+    return { success: false, message: "Lỗi cập nhật: " + e.toString() };
   }
 }
 
