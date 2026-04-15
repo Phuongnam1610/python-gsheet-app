@@ -1233,23 +1233,31 @@
       }
 
       // 2. Tải Dữ liệu
+      refreshDashboardData(false);
+      
+      // Auto-polling 20s/lần cập nhật ngầm
+      if (window.autoRefreshTimer) clearInterval(window.autoRefreshTimer);
+      window.autoRefreshTimer = setInterval(() => { refreshDashboardData(true); }, 20000);
+    }
+    
+    function refreshDashboardData(silent = false) {
       if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
         google.script.run
           .withSuccessHandler(function(res) {
             if(res.success) updateDashboard(res.data);
-            else alert("Lỗi tải data: " + res.message);
+            else if(!silent) alert("Lỗi tải data: " + res.message);
           }).withFailureHandler(function(err) {
-            alert("Lỗi kết nối: " + err.message);
+            if(!silent) alert("Lỗi kết nối: " + err.message);
           }).getDashboardData();
       } else if (APP_SCRIPT_URL !== "") {
         fetch(APP_SCRIPT_URL + "?action=getDashboardData")
           .then(res => res.json())
           .then(res => {
              if(res.success) updateDashboard(res.data);
-             else alert("Lỗi tải data: " + res.message);
-          }).catch(err => alert("Lỗi kết nối: " + err));
+             else if(!silent) alert("Lỗi tải data: " + res.message);
+          }).catch(err => { if(!silent) alert("Lỗi kết nối: " + err); });
       } else {
-        // MOCK DATA (Kiểm tra giao diện local)
+        if (silent) return;
         setTimeout(() => {
           updateDashboard({
             total: 120, completedCount: 85, completionRate: 71, avgTasksPerDay: 5.2,
@@ -1445,8 +1453,11 @@
              box.style.borderColor = "rgba(16, 185, 129, 0.3)";
              box.style.background = "rgba(16, 185, 129, 0.15)";
              box.style.color = "var(--color-success)";
-             box.innerText = "✅ " + res.message + " Trang đang tự động tải lại...";
-             setTimeout(() => { location.reload(); }, 1000);
+             box.innerText = "✅ " + res.message + " đang làm mới dữ liệu...";
+             setTimeout(() => { 
+                closeEditModal();
+                refreshDashboardData(true); 
+             }, 1000);
           } else {
              box.style.display = "block";
              box.style.borderColor = "rgba(239, 68, 68, 0.3)";
@@ -1555,8 +1566,11 @@
              box.style.borderColor = "rgba(16, 185, 129, 0.3)";
              box.style.background = "rgba(16, 185, 129, 0.15)";
              box.style.color = "var(--color-success)";
-             box.innerText = "✅ " + res.message + " Trang đang tự tải lại...";
-             setTimeout(() => { location.reload(); }, 900);
+             box.innerText = "✅ " + res.message + " đang làm mới dữ liệu...";
+             setTimeout(() => { 
+                closeCreateTaskModal();
+                refreshDashboardData(true); 
+             }, 900);
           } else {
              box.style.display = "block";
              box.style.borderColor = "rgba(239, 68, 68, 0.3)";
