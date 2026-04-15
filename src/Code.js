@@ -422,6 +422,8 @@ function checkOverdueTasks() {
          var discordId = (row[9] || '').toString().trim();
          var gmail = (row[10] || '').toString().trim();
          
+         console.log("Phát hiện task quá hạn! [Task: " + taskName + "] - [Member: " + memberName + "] - [Email: " + gmail + "] - [Discord: " + discordId + "]");
+
          // Gửi Email
          sendOverdueEmail(gmail, memberName, taskName, deadlineDate);
          
@@ -435,7 +437,11 @@ function checkOverdueTasks() {
 }
 
 function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
-  if (!email || email.indexOf('@') === -1) return;
+  console.log("Đang xử lý gửi Email cho: " + email);
+  if (!email || email.indexOf('@') === -1) {
+    console.log("=> Lỗi: Định dạng email không hợp lệ hoặc trống (" + email + ")");
+    return;
+  }
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
   var subject = "🚨 CẢNH BÁO: Bạn có Task chưa hoàn thành đã quá hạn!";
@@ -453,13 +459,18 @@ function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
       subject: subject,
       body: body
     });
+    console.log("=> THÀNH CÔNG: Đã gọi hàm MailApp.sendEmail đến " + email);
   } catch (e) {
-    console.log("Không thể gửi email đến: " + email);
+    console.error("=> THẤT BẠI: Lỗi khi thực thi MailApp.sendEmail đến " + email + ":", e);
   }
 }
 
 function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") return;
+  console.log("Đang xử lý gửi Discord cho ID: " + discordId + " qua Webhook: " + DISCORD_WEBHOOK_URL);
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
+    console.log("=> Lỗi: DISCORD_WEBHOOK_URL đang bị trống!");
+    return;
+  }
   
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
@@ -484,9 +495,10 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
   };
   
   try {
-    UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, params);
+    var response = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, params);
+    console.log("=> Hồi đáp từ Discord: Code " + response.getResponseCode() + ", Body: " + response.getContentText());
   } catch(e) {
-    console.log("Không thể gọi discord webhook: " + e);
+    console.error("=> THẤT BẠI: Lỗi khi gọi UrlFetchApp tới Discord Webhook:", e);
   }
 }
 
