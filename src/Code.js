@@ -417,12 +417,22 @@ function installDailyTrigger() {
       ScriptApp.deleteTrigger(triggers[i]);
     }
   }
+  
+  // Ca Sáng (8h - 9h sáng)
   ScriptApp.newTrigger('checkOverdueTasks')
            .timeBased()
            .everyDays(1)
            .atHour(8)
            .create();
-  console.log("Đã cài đặt thành công tự động chạy báo cáo quá hạn lúc 8h-9h sáng mỗi ngày!");
+           
+  // Ca Tối (8h - 9h tối)
+  ScriptApp.newTrigger('checkOverdueTasks')
+           .timeBased()
+           .everyDays(1)
+           .atHour(20)
+           .create();
+           
+  console.log("Đã cài đặt thành công tự động chạy báo cáo quá hạn 2 lần/ngày: [Sáng 8h-9h] và [Tối 20h-21h]!");
 }
 
 // Hàm này sẽ được gán vào Trigger chạy mỗi ngày (Daily)
