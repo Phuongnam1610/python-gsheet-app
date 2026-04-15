@@ -425,14 +425,29 @@ function installDailyTrigger() {
            .atHour(8)
            .create();
            
-  // Ca Tối (8h - 9h tối)
+  // Ca Tối (9h - 10h tối)
   ScriptApp.newTrigger('checkOverdueTasks')
            .timeBased()
            .everyDays(1)
-           .atHour(20)
+           .atHour(21)
            .create();
            
-  console.log("Đã cài đặt thành công tự động chạy báo cáo quá hạn 2 lần/ngày: [Sáng 8h-9h] và [Tối 20h-21h]!");
+  console.log("Đã cài đặt thành công tự động chạy báo cáo quá hạn 2 lần/ngày: [Sáng 8h] và [Tối 21h]!");
+}
+
+// Hàm Test Nháp: Chạy chính xác vào lúc 21:15 hôm nay (Chạy 1 lần duy nhất rồi tự hủy)
+function installTestTrigger() {
+  var d = new Date();
+  d.setHours(21);
+  d.setMinutes(15);
+  d.setSeconds(0);
+  
+  ScriptApp.newTrigger('checkOverdueTasks')
+           .timeBased()
+           .at(d)
+           .create();
+           
+  console.log("ĐÃ CÀI ĐẶT TEST: Hệ thống sẽ báo thức đúng khung giờ 21:15 tối nay!");
 }
 
 // Hàm này sẽ được gán vào Trigger chạy mỗi ngày (Daily)
