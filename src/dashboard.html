@@ -685,7 +685,7 @@
         google.script.run
           .withSuccessHandler(function(res) { cleanup(res.success, res.message, res.debug_log); })
           .withFailureHandler(function(err) { cleanup(false, "Lỗi mạng: " + err, null); })
-          .sendQuickMessage(dataObj.message, dataObj.sendDiscord, dataObj.sendEmail);
+          .sendQuickMessage(dataObj.message, dataObj.sendDiscord, dataObj.sendEmail, dataObj.targetEmails, dataObj.targetDiscords);
       } else if (APP_SCRIPT_URL !== "") {
         fetch(APP_SCRIPT_URL, {
           method: "POST",
