@@ -1,5 +1,6 @@
 var SHEET_ID = '1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g';
-var VERSION = '2026-04-15 v3 (debug-enabled)';
+var VERSION = '2026-04-15 v4 (Webhook-Mode)';
+var DISCORD_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1493771438656716885/TPyRKMgY8IXRjTaZnf9t6QpyEUD-3mJreIubOvpL8HGDqfVyZZ9YJxGZk_QCT6P7lcuX';
 
 function doGet(e) {
   var page = e.parameter.page;
@@ -499,7 +500,6 @@ function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
 }
 
 function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
-  console.log("Đang xử lý gửi Discord cho ID: " + discordId + " qua Webhook: " + DISCORD_WEBHOOK_URL);
   if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
     console.log("=> Lỗi: DISCORD_WEBHOOK_URL đang bị trống!");
     return;
@@ -510,9 +510,9 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
   // Tag đúng định dạng người dùng trên discord: <@id>
   var mention = (discordId && discordId !== "") ? "<@" + discordId + ">" : memberName;
   
-  var message = "🚨 **CẢNH BÁO QUÁ HẠN TASK (OVERDUE)** 🚨\n\n" +
+  var message = "🚨 **CẢNH BÁO CAO ĐỘ (OVERDUE)** 🚨\n\n" +
                 "👤 **Nhân sự:** " + mention + "\n" +
-                "📌 **Công việc đang làm:** `" + taskName + "`\n" +
+                "📌 **Công việc quá hạn:** `" + taskName + "`\n" +
                 "⏰ **Quá hạn từ:** " + deadlineFormatted + "\n\n" +
                 "Vui lòng xử lý và phản hồi lại hệ thống sớm nhất có thể!";
                 
@@ -529,7 +529,7 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
   
   try {
     var response = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, params);
-    console.log("=> Hồi đáp từ Discord: Code " + response.getResponseCode() + ", Body: " + response.getContentText());
+    console.log("=> Hồi đáp từ Discord Webhook: Code " + response.getResponseCode());
   } catch(e) {
     console.error("=> THẤT BẠI: Lỗi khi gọi UrlFetchApp tới Discord Webhook:", e);
   }
@@ -554,7 +554,7 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
       if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
         log("❌ [Discord] DISCORD_WEBHOOK_URL đang trống, bỏ qua.");
       } else {
-        log("🎮 [Discord] Bắt đầu xử lý...");
+        log("🎮 [Discord] Bắt đầu xử lý gửi bằng Loa Phường (Webhook)...");
         var mentions = "";
         var discordList = [];
 
@@ -574,23 +574,27 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
         }
 
         if (discordList.length === 0) {
-          log("⚠️  [Discord] Không có Discord ID nào hợp lệ để mention, gửi thông báo không tag.");
+          log("⚠️  [Discord] Không có Discord ID nào hợp lệ để mention.");
         } else {
-          log("🏷️  [Discord] Sẽ mention (" + discordList.length + "): " + discordList.join(", "));
+          log("🏷️  [Discord] Sẽ " + (mentions === "@everyone " ? "báo động toàn server" : "réo tên (" + discordList.length + " người): " + discordList.join(", ")));
         }
 
         var discordContent = "📢 **THÔNG BÁO TỪ BAN QUẢN LÝ:**\n" + (mentions ? mentions + "\n" : "") + message;
         var payload = JSON.stringify({ content: discordContent });
-        var resD = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, {
-          method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true
-        });
-        var httpCode = resD.getResponseCode();
-        var httpBody = resD.getContentText();
+        
+        try {
+          var resD = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, {
+            method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true
+          });
+          var httpCode = resD.getResponseCode();
 
-        if (httpCode === 200 || httpCode === 204) {
-          log("✅ [Discord] Gửi thành công! HTTP " + httpCode);
-        } else {
-          log("❌ [Discord] Gửi thất bại! HTTP " + httpCode + " | Body: " + httpBody);
+          if (httpCode === 200 || httpCode === 204) {
+            log("✅ [Discord Webhook] Đã réo tên thành công!");
+          } else {
+            log("❌ [Discord Webhook] Thất bại! Lỗi từ Discord: " + resD.getContentText());
+          }
+        } catch (errD) {
+          log("❌ [Discord Webhook] Cột sóng đứt ngang: " + errD.toString());
         }
         successD = true;
       }
