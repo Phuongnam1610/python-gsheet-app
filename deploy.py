@@ -81,6 +81,11 @@ GitHub Pages (Dashboard): {gh_pages_url}dashboard.html
 """
     with open("deployed_links.txt", "w", encoding="utf-8") as f:
         f.write(links_content)
+    
+    print("\n" + "-" * 30 + " LINK " + "-" * 30)
+    print(links_content)
+    print("-" * 66)
+    
     print("[SUCCESS] Generating deployed_links.txt - Success!")
     return True
 
