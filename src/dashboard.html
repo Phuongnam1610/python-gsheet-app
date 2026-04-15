@@ -886,15 +886,26 @@
     }
 
     window.onload = () => {
-      // Kiểm tra admin (Dựa vào localStorage)
+      // Cơ Chế Ép Đăng Nhập
       const userStr = localStorage.getItem('task_app_user');
       let isAdmin = false;
-      if (userStr) {
-        try {
-          const userObj = JSON.parse(userStr);
-          if (userObj && userObj.role === 'admin') isAdmin = true;
-        } catch(e){}
+      
+      if (!userStr) {
+        document.getElementById('loader').innerHTML = `
+          <div style="text-align: center; color: var(--text-main);">
+            <h2 style="margin-bottom:15px;">🔒 Bạn Chưa Đăng Nhập</h2>
+            <p style="color:var(--text-muted); margin-bottom:25px;">Vui lòng đăng nhập để truy cập Dashboard.</p>
+            <button onclick="goToLogin()" class="btn btn-primary">Đi đến trang Đăng Nhập</button>
+          </div>
+        `;
+        document.getElementById('loader').style.backgroundColor = "rgba(15, 23, 42, 0.95)";
+        return; // Ngăn chặn load dữ liệu
       }
+
+      try {
+        const userObj = JSON.parse(userStr);
+        if (userObj && userObj.role === 'admin') isAdmin = true;
+      } catch(e){}
       
       if (isAdmin) {
          document.getElementById('btnSettingsTab').style.display = 'block';
@@ -943,6 +954,15 @@
         }, 1200);
       }
     };
+    function goToLogin() {
+      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
+        google.script.run.withSuccessHandler(function(url) {
+          window.top.location.href = url + '?page=report';
+        }).getScriptUrl();
+      } else {
+        window.location.href = "index.html"; 
+      }
+    }
   </script>
 </body>
 </html>
