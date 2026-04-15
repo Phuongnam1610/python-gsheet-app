@@ -194,6 +194,7 @@
     /* TABLE LAYOUT */
     .table-container {
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     .filters-bar {
@@ -201,6 +202,13 @@
       flex-wrap: wrap;
       gap: 12px;
       margin-bottom: 20px;
+    }
+    
+    @media (max-width: 600px) {
+      .filters-bar { flex-direction: column; }
+      .filters-bar .form-control { width: 100%; min-width: 100%; }
+      table { font-size: 13px; }
+      td, th { padding: 12px 10px; }
     }
     
     .form-control {
@@ -440,6 +448,7 @@
               <th width="180">Nhân sự</th>
               <th width="180">Ban</th>
               <th>Chi tiết Task</th>
+              <th width="120">Hạn chót</th>
               <th width="140">Trạng thái</th>
               <th width="140">Mức ưu tiên</th>
               <th width="90" style="text-align:center;">Hành động</th>
@@ -926,6 +935,7 @@
             </div>
             ${taskIdBadge}
           </td>
+          <td><span style="color:var(--text-muted);">${task.deadline || '-'}</span></td>
           <td><span class="badge ${badgeClass}">${task.status}</span></td>
           <td>${priorityText}</td>
           <td style="text-align:center;">${actionHTML}</td>

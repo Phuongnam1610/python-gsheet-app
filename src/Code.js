@@ -313,11 +313,30 @@ function getDashboardData(e) {
   }
 }
 
-// Helper: Format date an to├án
+// Helper: Format date an toàn (Hỗ trợ phân rã chuỗi VN "dd/mm/yyyy")
 function safeFormatDate(val, format) {
   try {
     if (!val) return '';
-    var d = new Date(val);
+    var d;
+    
+    // Nếu vốn đã là một object Date chuẩn
+    if (Object.prototype.toString.call(val) === '[object Date]') {
+       d = val;
+    } else {
+       var str = val.toString().trim();
+       var parts = str.split(/[/-]/);
+       
+       if (parts.length === 3) {
+           if (parts[0].length === 4) { // yyyy/mm/dd
+               d = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
+           } else { // dd/mm/yyyy
+               d = new Date(parts[2], parseInt(parts[1], 10) - 1, parts[0]);
+           }
+       } else {
+           d = new Date(str);
+       }
+    }
+    
     if (isNaN(d.getTime())) return val.toString();
     return Utilities.formatDate(d, "GMT+7", format);
   } catch (e) {
@@ -463,6 +482,9 @@ function checkOverdueTasks() {
     var today = new Date();
     today.setHours(0,0,0,0);
     
+    var overdueList = [];
+    var upcomingList = [];
+    
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       var status = (row[6] || '').toString().toLowerCase();
@@ -471,22 +493,21 @@ function checkOverdueTasks() {
       // Bỏ qua task đã hoàn thành hoặc không có deadline
       if (status.indexOf('hoàn thành') > -1 || !deadlineStr) continue;
       
-      // Parse ngày tháng deadline
+      // Parse ngày tháng deadline an toàn
       var deadlineDate;
-      if (deadlineStr instanceof Date) {
+      if (Object.prototype.toString.call(deadlineStr) === '[object Date]') {
         deadlineDate = deadlineStr;
       } else {
-        // Cố gắng parse chuỗi dạng dd/mm/yyyy (hoặc yyyy-mm-dd)
-        var parts = deadlineStr.toString().split(/[/-]/);
+        var str = deadlineStr.toString().trim();
+        var parts = str.split(/[/-]/);
         if (parts.length === 3) {
-           // Giả định định dạng VN là dd/mm/yyyy
-           if (parts[0].length === 4) {
-             deadlineDate = new Date(parts[0], parseInt(parts[1])-1, parts[2]); // yyyy-mm-dd
-           } else {
-             deadlineDate = new Date(parts[2], parseInt(parts[1])-1, parts[0]); // dd-mm-yyyy
+           if (parts[0].length === 4) { // yyyy-mm-dd
+             deadlineDate = new Date(parts[0], parseInt(parts[1], 10)-1, parts[2]);
+           } else { // dd-mm-yyyy
+             deadlineDate = new Date(parts[2], parseInt(parts[1], 10)-1, parts[0]); 
            }
         } else {
-           deadlineDate = new Date(deadlineStr);
+           deadlineDate = new Date(str);
         }
       }
       
@@ -504,36 +525,37 @@ function checkOverdueTasks() {
       
       // So sánh ngày
       if (diffDays < 0) {
-         console.log("Phát hiện task quá hạn! [Task: " + taskName + "] - [Member: " + memberName + "]");
-
-         if (!gmail || gmail.indexOf('@') === -1) {
-             console.log("=> Bỏ qua gửi thư: " + memberName + " không có Email hợp lệ.");
-         } else {
+         if (gmail && gmail.indexOf('@') > -1) {
              sendOverdueEmail(gmail, memberName, taskName, deadlineDate);
          }
-         
-         if (!discordId || discordId === "") {
-             console.log("=> Cảnh báo: " + memberName + " không có mốc ID Discord (Snowflake), sẽ chỉ gắn tên chữ.");
-         }
-         
-         sendOverdueDiscord(discordId, memberName, taskName, deadlineDate);
+         overdueList.push({
+             discordId: discordId,
+             memberName: memberName,
+             taskName: taskName,
+             deadlineDate: deadlineDate
+         });
          
       } else if (diffDays === 1) {
-         console.log("Phát hiện task sắp đến hạn (1 ngày)! [Task: " + taskName + "] - [Member: " + memberName + "]");
-         
-         if (!gmail || gmail.indexOf('@') === -1) {
-             console.log("=> Bỏ qua gửi thư: " + memberName + " không có Email hợp lệ.");
-         } else {
+         if (gmail && gmail.indexOf('@') > -1) {
              sendUpcomingEmail(gmail, memberName, taskName, deadlineDate);
          }
-         
-         if (!discordId || discordId === "") {
-             console.log("=> Cảnh báo: " + memberName + " không có mốc ID Discord (Snowflake), sẽ chỉ gắn tên chữ.");
-         }
-         
-         sendUpcomingDiscord(discordId, memberName, taskName, deadlineDate);
+         upcomingList.push({
+             discordId: discordId,
+             memberName: memberName,
+             taskName: taskName,
+             deadlineDate: deadlineDate
+         });
       }
     }
+    
+    // Tổng hợp gửi Discord
+    if (overdueList.length > 0) {
+        sendAggregatedDiscord(overdueList, "OVERDUE");
+    }
+    if (upcomingList.length > 0) {
+        sendAggregatedDiscord(upcomingList, "UPCOMING");
+    }
+    
   } catch(e) {
     console.error("Lỗi khi kiểm tra task quá hạn:", e);
   }
@@ -545,51 +567,27 @@ function checkOverdueTasks() {
 
 function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
   if (!email || email.indexOf('@') === -1) {
-    return; // Đã check ở phía trên, return luôn cho an toàn
+    return;
   }
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
-  var subject = "[CANH BAO] Ban co Task chua hoan thanh da qua han!";
-  var body = "Chào " + memberName + ",\n\n" +
-             "Hệ thống quản lý Task nhận thấy bạn có công việc đã vượt quá thời hạn dự kiến mà vẫn chưa hoàn thành.\n\n" +
-             "[!] Tên công việc đang làm: " + taskName + "\n" +
-             "[*] Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
-             "Vui lòng ưu tiên xử lý và cập nhật tiến độ lên form báo cáo nội bộ sớm nhất có thể.\n" +
-             "Cảm ơn bạn đã hợp tác!\n\n" +
-             "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
+  var taskSub = taskName.length > 50 ? taskName.substring(0, 47) + "..." : taskName;
+  var subject = "[CANH BAO] Cong viec qua han: " + taskSub;
+  var body = "Kính gửi " + memberName + ",\n\n" +
+             "Hệ thống Quản lý Công việc xin thông báo: Bạn đang có đầu mục công việc đã vượt quá thời hạn cam kết.\n\n" +
+             "THÔNG TIN CÔNG VIỆC QUÁ HẠN:\n" +
+             "- Tên công việc: " + taskName + "\n" +
+             "- Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
+             "Đề nghị bạn ưu tiên xử lý gấp đầu mục công việc trên và cập nhật trạng thái/tiến độ trực tiếp trên Hệ thống Quản trị (Dashboard) trong thời gian sớm nhất.\n\n" +
+             "Lưu ý: Việc chậm trễ báo cáo có thể ảnh hưởng đến tiến độ chung của toàn ban.\n\n" +
+             "Trân trọng,\n" +
+             "Ban Quản Trị Hệ Thống.";
              
   try {
     GmailApp.sendEmail(email, subject, body);
-    console.log("=> THÀNH CÔNG: Đã gọi hàm GmailApp.sendEmail đến " + email);
+    console.log("=> THÀNH CÔNG: Đã gửi Email nhắc nhở quá hạn đến " + email);
   } catch (e) {
-    console.error("=> THẤT BẠI: Lỗi khi thực thi GmailApp.sendEmail đến " + email + ":", e);
-  }
-}
-
-function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
-  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
-    console.log("=> Lỗi: DISCORD_WEBHOOK_URL đang bị trống!");
-    return;
-  }
-  
-  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
-  
-  // Tag đúng định dạng người dùng trên discord: <@id>
-  var mention = (discordId && discordId !== "") ? "<@" + discordId + ">" : memberName;
-  
-  var message = "🚨 **CẢNH BÁO CAO ĐỘ (OVERDUE)** 🚨\n\n" +
-                "👤 **Nhân sự:** " + mention + "\n" +
-                "📌 **Công việc quá hạn:** `" + taskName + "`\n" +
-                "⏰ **Quá hạn từ:** " + deadlineFormatted + "\n\n" +
-                "Vui lòng xử lý và phản hồi lại hệ thống sớm nhất có thể!";
-                
-  var payload = JSON.stringify({ content: message });
-  
-  try {
-    var response = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true });
-    console.log("=> Hồi đáp từ Discord Webhook: Code " + response.getResponseCode());
-  } catch(e) {
-    console.error("=> THẤT BẠI: Lỗi khi gọi UrlFetchApp tới Discord Webhook:", e);
+    console.error("=> THẤT BẠI: Lỗi khi gửi Email đến " + email + ":", e);
   }
 }
 
@@ -601,14 +599,17 @@ function sendUpcomingEmail(email, memberName, taskName, deadlineDate) {
   if (!email || email.indexOf('@') === -1) return;
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
-  var subject = "[NHAC NHO] Sap toi han chot cong viec cua ban!";
-  var body = "Chào " + memberName + ",\n\n" +
-             "Hệ thống quản lý Task nhắc nhở thân thiện rằng bạn có công việc sắp đến hạn vào ngày mai.\n\n" +
-             "[!] Tên công việc đang làm: " + taskName + "\n" +
-             "[*] Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
-             "Hãy đảm bảo bạn hoàn thành hoặc cập nhật tiến độ sớm để tránh bị quá hạn nhé!\n" +
-             "Chúc bạn một ngày làm việc hiệu quả.\n\n" +
-             "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
+  var taskSub = taskName.length > 50 ? taskName.substring(0, 47) + "..." : taskName;
+  var subject = "[NHOM NHAC NHO] Cong viec sap toi han: " + taskSub;
+  var body = "Kính gửi " + memberName + ",\n\n" +
+             "Hệ thống Quản lý Công việc gửi lời nhắc về đầu mục công việc của bạn chuẩn bị đến hạn.\n\n" +
+             "THÔNG TIN CÔNG VIỆC:\n" +
+             "- Tên công việc: " + taskName + "\n" +
+             "- Hạn chót (Deadline): " + deadlineFormatted + " (Ngày mai)\n\n" +
+             "Để đảm bảo đúng tiến độ dự án đề ra, vui lòng hoàn tất công việc và báo cáo kết quả trước thời hạn nêu trên.\n" +
+             "Nếu công việc đã hoàn thành hoặc đang gặp khó khăn, vui lòng cập nhật trạng thái trên Hệ thống Quản trị (Dashboard).\n\n" +
+             "Trân trọng,\n" +
+             "Ban Quản Trị Hệ Thống.";
              
   try {
     GmailApp.sendEmail(email, subject, body);
@@ -617,24 +618,33 @@ function sendUpcomingEmail(email, memberName, taskName, deadlineDate) {
   }
 }
 
-function sendUpcomingDiscord(discordId, memberName, taskName, deadlineDate) {
+// =======================
+// GOM NHÓM TẠO BẢNG ĐẨY LÊN DISCORD (MARKDOWN TABLE)
+// =======================
+function sendAggregatedDiscord(list, type) {
   if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") return;
   
-  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
-  var mention = (discordId && discordId !== "") ? "<@" + discordId + ">" : memberName;
+  var title = type === "OVERDUE" ? "🚨 **BẢNG PHONG THẦN: DANH SÁCH TASK QUÁ HẠN** 🚨" : "⚠️ **SẮP TỚI HẠN: NHẮC NHỞ DEADLINE VÀO NGÀY MAI** ⚠️";
+  var header = "| Nhân Sự | Công Việc | Hạn Chót |\n| --- | --- | --- |\n";
+  var bodyContent = "";
   
-  var message = "⚠️ **NHẮC NHỞ SẮP TỚI HẠN CHÓT (UPCOMING)** ⚠️\n\n" +
-                "👤 **Nhân sự:** " + mention + "\n" +
-                "📌 **Công việc đang làm:** `" + taskName + "`\n" +
-                "⏰ **Thời hạn:** " + deadlineFormatted + " (Ngàỳ mai)\n\n" +
-                "Chỉ còn 1 ngày nữa là tới deadline rồi, hãy kiểm tra và hoàn thành sớm nhé!";
-                
+  for (var i = 0; i < list.length; i++) {
+     var item = list[i];
+     var mention = (item.discordId && item.discordId !== "") ? "<@" + item.discordId + ">" : item.memberName;
+     var dFormat = Utilities.formatDate(item.deadlineDate, "GMT+7", "dd/MM");
+     // Cắt bớt tên task tránh làm hỏng bảng trên mobile
+     var shortTask = item.taskName.length > 40 ? item.taskName.substring(0, 37) + "..." : item.taskName;
+     bodyContent += "| " + mention + " | " + shortTask + " | " + dFormat + " |\n";
+  }
+  
+  var message = title + "\n" + header + bodyContent;
   var payload = JSON.stringify({ content: message });
   
   try {
     UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true });
+    console.log("=> Gọi Discord Table thành công dải " + type + " (" + list.length + " người)");
   } catch(e) {
-    console.error("=> THẤT BẠI (Upcoming Discord):", e);
+    console.error("=> THẤT BẠI khi đẩy bảng Discord:", e);
   }
 }
 
