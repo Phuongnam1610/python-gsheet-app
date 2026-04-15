@@ -464,14 +464,10 @@ function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
              "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
              
   try {
-    MailApp.sendEmail({
-      to: email,
-      subject: subject,
-      body: body
-    });
-    console.log("=> THÀNH CÔNG: Đã gọi hàm MailApp.sendEmail đến " + email);
+    GmailApp.sendEmail(email, subject, body);
+    console.log("=> THÀNH CÔNG: Đã gọi hàm GmailApp.sendEmail đến " + email);
   } catch (e) {
-    console.error("=> THẤT BẠI: Lỗi khi thực thi MailApp.sendEmail đến " + email + ":", e);
+    console.error("=> THẤT BẠI: Lỗi khi thực thi GmailApp.sendEmail đến " + email + ":", e);
   }
 }
 
@@ -625,8 +621,13 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
           emailOptions.bcc = bccEmails.join(",");
         }
 
-        MailApp.sendEmail(emailOptions);
-        log("✅ [Email] MailApp.sendEmail() đã được gọi thành công!");
+        GmailApp.sendEmail(
+          primaryEmail,
+          emailOptions.subject,
+          emailOptions.body,
+          { bcc: emailOptions.bcc || "" }
+        );
+        log("✅ [Email] GmailApp.sendEmail() đã được gọi thành công!");
         successE = true;
       }
     }
