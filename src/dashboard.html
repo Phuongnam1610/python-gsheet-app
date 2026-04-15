@@ -295,6 +295,46 @@
       </div>
     </div>
     
+    <!-- KHỐI GỬI THÔNG BÁO NHANH -->
+    <div class="card" style="margin-bottom: 30px; border-color: var(--accent);">
+      <div class="card-title" style="color: var(--accent);">🚀 Phát Sóng Thông Báo Tắt</div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+        Gửi tin nhắn trực tiếp đến kênh Discord nhóm và BCC tất cả Email của các thành viên được chọn.
+      </p>
+
+      <!-- Danh sách User -->
+      <div style="margin-bottom: 15px;">
+        <label style="font-size: 14px; color: var(--text-muted); display: block; margin-bottom: 5px; font-weight: 500;">👤 Chọn Đối Tượng Nhận:</label>
+        <div style="background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; max-height: 160px; overflow-y: auto;">
+          <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; padding: 5px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 5px;">
+            <input type="checkbox" id="selectAllUsersCheck" checked onchange="toggleAllUsers()" style="accent-color: var(--color-success); width: 16px; height: 16px;"> 
+            <span style="color: var(--text-main);">Tất Cả Mọi Người Khắp Trạm</span>
+          </label>
+          <div id="usersCheckList" style="display: flex; flex-direction: column; gap: 6px;">
+            <!-- Render JS object here -->
+          </div>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+          <input type="checkbox" id="sendDiscordCheck" checked style="accent-color: var(--color-purple); width: 16px; height: 16px;"> 
+          Gửi qua Discord 
+        </label>
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+          <input type="checkbox" id="sendEmailCheck" checked style="accent-color: var(--color-danger); width: 16px; height: 16px;"> 
+          Gửi qua Email
+        </label>
+      </div>
+
+      <textarea id="quickMessage" class="form-control" placeholder="Nhập nội dung thông báo... (Hỗ trợ xuống dòng)" style="min-height: 80px; margin-bottom: 15px;"></textarea>
+      
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <button id="btnQuickSend" onclick="sendQuickMessage()" class="btn btn-primary" style="width: 150px; text-align: center;">Gửi Thông Báo</button>
+        <span id="quickSendAlert" style="font-size: 14px; display: none;"></span>
+      </div>
+    </div>
+    
     <div class="card">
       <div class="card-title">🔥 Bảng Theo Dõi Tiến Độ</div>
       
@@ -360,6 +400,7 @@
 
       renderStatusChart(data.byStatus);
       renderDeptChart(data.byDepartment);
+      renderUsersCheckList(data.allUsers);
       
       globalTasks = data.recentTasks || []; // Nếu có toàn bộ task thì tốt hơn, nhưng đây là dải recentTasks (max 20 theo code GAS cũ)
       // Chú ý: Backend GAS trả về 20 tasks gần nhất. Cần nhắc người dùng nếu họ muốn lọc toàn bộ thì backend cần cập nhật.
@@ -517,6 +558,132 @@
           }
         }
       });
+    }
+
+    // --- GIAO DIỆN CHỌN NGƯỜI NHẬN ---
+    function renderUsersCheckList(usersArr) {
+      const listContainer = document.getElementById('usersCheckList');
+      listContainer.innerHTML = '';
+      if(!usersArr || usersArr.length === 0) {
+        listContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">Chưa có dữ liệu thành viên trên hệ thống...</span>';
+        return;
+      }
+      usersArr.forEach((u, i) => {
+        if(!u.gmail && !u.discord) return; // Bỏ qua ai ko có contact
+        const label = document.createElement('label');
+        label.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;';
+        label.innerHTML = `
+          <input type="checkbox" class="user-check-item" checked data-email="${u.gmail||''}" data-discord="${u.discord||''}" style="accent-color: var(--accent); width: 14px; height: 14px;">
+          <span style="font-weight:500; color: var(--text-main);">${u.name} ${u.mnv ? '('+u.mnv+')' : ''}</span>
+          <span style="color: var(--text-muted); font-size: 12px; margin-left: 5px;">
+            ${u.gmail ? '📧' : ''} ${u.discord ? '🎮' : ''}
+          </span>
+        `;
+        listContainer.appendChild(label);
+      });
+      // Sự kiện gỡ check All
+      document.querySelectorAll('.user-check-item').forEach(el => {
+        el.addEventListener('change', () => {
+          const allChecks = document.querySelectorAll('.user-check-item').length;
+          const checked = document.querySelectorAll('.user-check-item:checked').length;
+          document.getElementById('selectAllUsersCheck').checked = (allChecks === checked && allChecks > 0);
+        });
+      });
+    }
+
+    function toggleAllUsers() {
+      const state = document.getElementById('selectAllUsersCheck').checked;
+      document.querySelectorAll('.user-check-item').forEach(el => { el.checked = state; });
+    }
+
+    // --- LOGIC PHÁT SÓNG THÔNG BÁO ---
+    function sendQuickMessage() {
+      const msg = document.getElementById('quickMessage').value.trim();
+      const sendDiscord = document.getElementById('sendDiscordCheck').checked;
+      const sendEmail = document.getElementById('sendEmailCheck').checked;
+      const btn = document.getElementById('btnQuickSend');
+      const alertBox = document.getElementById('quickSendAlert');
+
+      if (!msg) {
+        alertBox.style.display = 'block';
+        alertBox.style.color = 'var(--color-warning)';
+        alertBox.innerText = '⚠️ Bạn chưa nhập thông báo.';
+        return;
+      }
+      
+      if (!sendDiscord && !sendEmail) {
+        alertBox.style.display = 'block';
+        alertBox.style.color = 'var(--color-warning)';
+        alertBox.innerText = '⚠️ Vui lòng chọn ít nhất 1 kênh phát sóng.';
+        return;
+      }
+
+      // Xử lý lấy danh sách Target
+      const isSelectAll = document.getElementById('selectAllUsersCheck').checked;
+      const targetEmails = [];
+      const targetDiscords = [];
+      
+      if (isSelectAll) {
+         targetEmails.push("all");
+         targetDiscords.push("all");
+      } else {
+         document.querySelectorAll('.user-check-item:checked').forEach(el => {
+           const e = el.getAttribute('data-email');
+           const d = el.getAttribute('data-discord');
+           if(e && targetEmails.indexOf(e) === -1) targetEmails.push(e);
+           if(d && targetDiscords.indexOf(d) === -1) targetDiscords.push(d);
+         });
+         if (targetEmails.length === 0 && targetDiscords.length === 0) {
+            alertBox.style.display = 'block';
+            alertBox.style.color = 'var(--color-warning)';
+            alertBox.innerText = '⚠️ Chưa có thành viên nào được chọn nhận thông báo.';
+            return;
+         }
+      }
+
+      btn.innerText = 'Đang phát sóng...';
+      btn.style.opacity = '0.7';
+      btn.disabled = true;
+      alertBox.style.display = 'none';
+
+      const dataObj = { 
+        message: msg, 
+        sendDiscord: sendDiscord, 
+        sendEmail: sendEmail,
+        targetEmails: targetEmails,
+        targetDiscords: targetDiscords
+      };
+
+      // Hàm đóng dọn sau khi thực hiện
+      const cleanup = (success, text) => {
+        btn.innerText = 'Gửi Thông Báo';
+        btn.style.opacity = '1';
+        btn.disabled = false;
+        alertBox.style.display = 'block';
+        alertBox.style.color = success ? 'var(--color-success)' : 'var(--color-danger)';
+        alertBox.innerText = success ? '✅ ' + text : '❌ ' + text;
+        if(success) document.getElementById('quickMessage').value = '';
+        setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
+      };
+
+      // Call Backend
+      if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
+        google.script.run
+          .withSuccessHandler(function(res) { cleanup(res.success, res.message); })
+          .withFailureHandler(function(err) { cleanup(false, "Lỗi mạng: " + err); })
+          .sendQuickMessage(dataObj.message, dataObj.sendDiscord, dataObj.sendEmail);
+      } else if (APP_SCRIPT_URL !== "") {
+        fetch(APP_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "sendQuickMessage", data: dataObj })
+        })
+        .then(res => res.json())
+        .then(res => cleanup(res.success, res.message))
+        .catch(err => cleanup(false, "Lỗi mạng: " + err));
+      } else {
+        setTimeout(() => cleanup(true, "Đã gửi thông báo thành công (Test Mode)"), 1000);
+      }
     }
 
     // MỤC CẤU HÌNH GITHUB PAGES

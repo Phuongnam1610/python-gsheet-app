@@ -6,12 +6,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #4F46E5;
-      --primary-hover: #4338CA;
-      --glass-bg: rgba(255, 255, 255, 0.15);
-      --glass-border: rgba(255, 255, 255, 0.3);
-      --text-dark: #1F2937;
-      --text-light: #F9FAFB;
+      --bg-dark: #0f172a;       /* slate-900 */
+      --card-bg: #1e293b;       /* slate-800 */
+      --border-color: #334155;  /* slate-700 */
+      --text-main: #f8fafc;     /* slate-50 */
+      --text-muted: #94a3b8;    /* slate-400 */
+      --accent: #3b82f6;        /* blue-500 */
+      --accent-hover: #2563eb;  /* blue-600 */
+      --color-success: #10b981; /* emerald-500 */
+      --color-danger: #ef4444;  /* red-500 */
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -21,51 +24,38 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: linear-gradient(135deg, #FF6B6B, #4ECDC4, #45B7D1);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
       padding: 20px;
-    }
-
-    @keyframes gradientBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+      -webkit-font-smoothing: antialiased;
     }
 
     .form-container {
-      background: var(--glass-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--glass-border);
-      border-radius: 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
       padding: 40px;
       width: 100%;
       max-width: 600px;
-      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
-      color: white;
-      transition: transform 0.3s ease;
-    }
-
-    .form-container:hover {
-      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
     .header-section {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .header-section h2 {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
-      margin-bottom: 8px;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 6px;
     }
 
     .header-section p {
       font-size: 14px;
-      opacity: 0.9;
+      color: var(--text-muted);
     }
 
     .form-group {
@@ -77,40 +67,36 @@
       margin-bottom: 8px;
       font-size: 14px;
       font-weight: 500;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      color: var(--text-main);
     }
 
     .form-control {
       width: 100%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-      font-size: 15px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-size: 14px;
       outline: none;
-      transition: all 0.3s ease;
+      transition: border-color 0.2s ease;
     }
 
     .form-control::placeholder {
-      color: rgba(255, 255, 255, 0.7);
+      color: var(--text-muted);
     }
 
     .form-control:focus {
-      background: rgba(255, 255, 255, 0.3);
-      border-color: #fff;
-      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+      border-color: var(--accent);
     }
 
-    /* Tùy chỉnh select cho hợp màu sáng trên nền trong suốt */
     select.form-control {
-      appearance: none;
       cursor: pointer;
     }
     
     select.form-control option {
-      background-color: var(--text-dark);
-      color: #fff;
+      background-color: var(--card-bg);
+      color: var(--text-main);
     }
 
     textarea.form-control {
@@ -127,9 +113,8 @@
       flex: 1;
     }
 
-    /* Hiệu ứng focus cho file, date.. thay đổi icon */
     input[type="date"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
+      filter: invert(0.8);
       cursor: pointer;
     }
 
@@ -138,109 +123,106 @@
       padding: 14px;
       margin-top: 10px;
       border: none;
-      border-radius: 12px;
-      background: #fff;
-      color: var(--primary);
-      font-size: 16px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: background 0.2s ease;
     }
 
     .btn-submit:hover {
-      background: var(--text-light);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+      background: var(--accent-hover);
     }
 
-    .btn-submit:active {
-      transform: translateY(0);
-    }
-
-    /* Loading state */
     .btn-submit.loading {
-      opacity: 0.8;
+      opacity: 0.7;
       cursor: not-allowed;
       pointer-events: none;
     }
 
     .alert {
       padding: 12px;
-      border-radius: 12px;
+      border-radius: 8px;
       margin-bottom: 20px;
       display: none;
+      font-size: 14px;
       font-weight: 500;
       text-align: center;
     }
     .alert.success {
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--color-success);
       display: block;
     }
     .alert.error {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--color-danger);
       display: block;
     }
 
-    /* Form Container Mặc định ẩn, điều khiển bằng JS */
     .view-container {
       display: none;
       width: 100%;
       max-width: 600px;
     }
 
-    /* Modal Styling */
     .modal-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(5px);
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 1000;
     }
+    
     .modal-content {
       background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
       padding: 30px;
       width: 90%;
-      max-width: 400px;
+      max-width: 450px;
       text-align: center;
-      color: white;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
     }
 
     .user-info-badge {
       display: inline-block;
-      padding: 6px 12px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 20px;
-      font-size: 13px;
+      padding: 8px 16px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
       margin-bottom: 20px;
-      color: #e0e7ff;
+      color: var(--text-main);
     }
 
     .logout-btn {
-      color: #fca5a5;
-      text-decoration: underline;
+      color: var(--color-danger);
+      text-decoration: none;
       cursor: pointer;
-      margin-left: 10px;
-      font-weight: bold;
+      margin-left: 15px;
+      font-weight: 600;
+    }
+    .logout-btn:hover {
+      text-decoration: underline;
     }
 
     .readonly-input {
-      background: rgba(0, 0, 0, 0.2) !important;
-      color: #94a3b8 !important;
+      background: rgba(255,255,255,0.05) !important;
+      color: var(--text-muted) !important;
       cursor: not-allowed;
     }
 
     @media (max-width: 600px) {
       .row { flex-direction: column; gap: 0; }
-      .form-container { padding: 24px; }
+      .form-container { padding: 25px 20px; }
     }
   </style>
 </head>
@@ -353,9 +335,9 @@
   <!-- POPUP: ĐĂNG KÝ CONTACT ID -->
   <div id="contactModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-bottom: 10px;">Cập Nhật Thông Tin 🔔</h3>
-      <p style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
-        Vui lòng cung cấp Discord ID và Gmail của bạn để hệ thống cập nhật.
+      <h3 style="margin-bottom: 10px; color: #fff;">Cập Nhật Thông Tin 🔔</h3>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px;">
+        Vui lòng cung cấp Discord ID và Gmail của bạn để hệ thống cập nhật tiến độ công việc.
       </p>
       
       <div id="modalAlert" class="alert"></div>
@@ -371,7 +353,7 @@
       </div>
       
       <button onclick="saveContact()" id="btnSaveContact" class="btn-submit">Lưu Thông Tin</button>
-      <button onclick="closeModal()" class="btn-submit" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); margin-top: 10px; color: #fff;">Bỏ qua lúc này</button>
+      <button onclick="closeModal()" class="btn-submit" style="background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-muted); margin-top: 10px;">Bỏ qua lúc này</button>
     </div>
   </div>
 

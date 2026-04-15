@@ -40,6 +40,8 @@ function doPost(e) {
       result = loginUser(data.username, data.password);
     } else if (action === "updateUserInfo") {
       result = updateUserInfo(data.username, data.discord, data.gmail);
+    } else if (action === "sendQuickMessage") {
+      result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail);
     } else {
       result = { success: false, message: "Action không hợp lệ" };
     }
@@ -162,13 +164,30 @@ function getDashboardData(e) {
     var sheet = ss.getSheets()[0];
     var lastRow = sheet.getLastRow();
 
+    var usersSheet = getUsersSheet();
+    var lastRowUsers = usersSheet.getLastRow();
+    var allUsers = [];
+    if (lastRowUsers >= 2) {
+      var uRaw = usersSheet.getRange(2, 1, lastRowUsers - 1, 6).getValues();
+      for (var k = 0; k < uRaw.length; k++) {
+        var uname = uRaw[k][3].toString().trim();
+        allUsers.push({
+          mnv: uRaw[k][0].toString(),
+          username: uRaw[k][1].toString(),
+          name: uname ? uname : uRaw[k][1].toString(),
+          discord: uRaw[k][4].toString(),
+          gmail: uRaw[k][5].toString()
+        });
+      }
+    }
+
     if (lastRow <= 1) {
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
         data: {
           total: 0, byStatus: {}, byPriority: {}, byDepartment: {},
           byMember: {}, dailyCounts: {}, recentTasks: [],
-          completionRate: 0, avgTasksPerDay: 0
+          completionRate: 0, avgTasksPerDay: 0, allUsers: allUsers
         }
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -250,7 +269,8 @@ function getDashboardData(e) {
       byDepartment: byDepartment,
       byMember: byMember,
       dailyCounts: dailyCounts,
-      recentTasks: recentTasks
+      recentTasks: recentTasks,
+      allUsers: allUsers
     };
 
     return ContentService.createTextOutput(JSON.stringify({
@@ -342,5 +362,200 @@ function updateUserInfo(username, discord, gmail) {
     return { success: false, message: "Không tìm thấy user." };
   } catch (error) {
     return { success: false, message: "Lỗi hệ thống: " + error.toString() };
+  }
+}
+
+// ========================
+// PHẦN THÔNG BÁO QUÁ HẠN (OVERDUE NOTIFICATIONS)
+// ========================
+
+var DISCORD_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1493771438656716885/TPyRKMgY8IXRjTaZnf9t6QpyEUD-3mJreIubOvpL8HGDqfVyZZ9YJxGZk_QCT6P7lcuX";
+
+// Hàm này sẽ được gán vào Trigger chạy mỗi ngày (Daily)
+function checkOverdueTasks() {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    
+    if (lastRow < 2) return;
+    
+    var data = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var status = (row[6] || '').toString().toLowerCase();
+      var deadlineStr = row[8];
+      
+      // Bỏ qua task đã hoàn thành hoặc không có deadline
+      if (status.indexOf('hoàn thành') > -1 || !deadlineStr) continue;
+      
+      // Parse ngày tháng deadline
+      var deadlineDate;
+      if (deadlineStr instanceof Date) {
+        deadlineDate = deadlineStr;
+      } else {
+        // Cố gắng parse chuỗi dạng dd/mm/yyyy (hoặc yyyy-mm-dd)
+        var parts = deadlineStr.toString().split(/[/-]/);
+        if (parts.length === 3) {
+           // Giả định định dạng VN là dd/mm/yyyy
+           if (parts[0].length === 4) {
+             deadlineDate = new Date(parts[0], parseInt(parts[1])-1, parts[2]); // yyyy-mm-dd
+           } else {
+             deadlineDate = new Date(parts[2], parseInt(parts[1])-1, parts[0]); // dd-mm-yyyy
+           }
+        } else {
+           deadlineDate = new Date(deadlineStr);
+        }
+      }
+      
+      if (isNaN(deadlineDate.getTime())) continue; // Bỏ qua nếu parse lỗi
+      
+      deadlineDate.setHours(0,0,0,0);
+      
+      // So sánh ngày
+      if (deadlineDate < today) {
+         var taskName = row[4] || 'Không rõ';
+         var memberName = row[2] || 'Bạn';
+         var discordId = (row[9] || '').toString().trim();
+         var gmail = (row[10] || '').toString().trim();
+         
+         // Gửi Email
+         sendOverdueEmail(gmail, memberName, taskName, deadlineDate);
+         
+         // Gửi Discord
+         sendOverdueDiscord(discordId, memberName, taskName, deadlineDate);
+      }
+    }
+  } catch(e) {
+    console.error("Lỗi khi kiểm tra task quá hạn:", e);
+  }
+}
+
+function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
+  if (!email || email.indexOf('@') === -1) return;
+  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
+  
+  var subject = "🚨 CẢNH BÁO: Bạn có Task chưa hoàn thành đã quá hạn!";
+  var body = "Chào " + memberName + ",\n\n" +
+             "Hệ thống quản lý Task nhận thấy bạn có công việc đã vượt quá thời hạn dự kiến mà vẫn chưa hoàn thành.\n\n" +
+             "📌 Tên công việc đang làm: " + taskName + "\n" +
+             "⏰ Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
+             "Vui lòng ưu tiên xử lý và cập nhật tiến độ lên form báo cáo nội bộ sớm nhất có thể.\n" +
+             "Cảm ơn bạn đã hợp tác!\n\n" +
+             "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
+             
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: subject,
+      body: body
+    });
+  } catch (e) {
+    console.log("Không thể gửi email đến: " + email);
+  }
+}
+
+function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") return;
+  
+  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
+  
+  // Tag đúng định dạng người dùng trên discord: <@id>
+  var mention = (discordId && discordId !== "") ? "<@" + discordId + ">" : memberName;
+  
+  var message = "🚨 **CẢNH BÁO QUÁ HẠN TASK (OVERDUE)** 🚨\n\n" +
+                "👤 **Nhân sự:** " + mention + "\n" +
+                "📌 **Công việc đang làm:** `" + taskName + "`\n" +
+                "⏰ **Quá hạn từ:** " + deadlineFormatted + "\n\n" +
+                "Vui lòng xử lý và phản hồi lại hệ thống sớm nhất có thể!";
+                
+  var payload = JSON.stringify({
+    content: message
+  });
+  
+  var params = {
+    method: "POST",
+    contentType: "application/json",
+    payload: payload,
+    muteHttpExceptions: true
+  };
+  
+  try {
+    UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, params);
+  } catch(e) {
+    console.log("Không thể gọi discord webhook: " + e);
+  }
+}
+
+// API: Gửi thông báo nhanh từ Dashboard
+function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetDiscords) {
+  try {
+    var successD = false;
+    var successE = false;
+
+    // Gửi Discord Broadcast
+    if (sendDiscord && DISCORD_WEBHOOK_URL !== "") {
+      var mentions = "";
+      if (targetDiscords && targetDiscords.length > 0) {
+         for (var j = 0; j < targetDiscords.length; j++) {
+           if (targetDiscords[j]) {
+             if (targetDiscords[j] === "all") { mentions = "@everyone "; break; }
+             else mentions += "<@" + targetDiscords[j] + "> ";
+           }
+         }
+      }
+      var payload = JSON.stringify({ content: "📢 **THÔNG BÁO TỪ BAN QUẢN LÝ:**\n" + mentions + "\n" + message });
+      UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, {
+        method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true
+      });
+      successD = true;
+    }
+
+    // Gửi Email Broadcast (BCC)
+    if (sendEmail) {
+      var validEmails = [];
+      if (targetEmails && targetEmails.length > 0 && targetEmails[0] === "all") {
+        var sheet = getUsersSheet();
+        var lastRow = sheet.getLastRow();
+        if (lastRow >= 2) {
+          var emailData = sheet.getRange(2, 6, lastRow - 1, 1).getValues();
+          for (var i = 0; i < emailData.length; i++) {
+            var eStr = emailData[i][0].toString().trim();
+            if (eStr.indexOf('@') > -1 && validEmails.indexOf(eStr) === -1) {
+               validEmails.push(eStr);
+            }
+          }
+        }
+      } else if (targetEmails && targetEmails.length > 0) {
+        for(var i=0; i<targetEmails.length; i++) {
+           var eStr = targetEmails[i].toString().trim();
+           if (eStr.indexOf('@') > -1 && validEmails.indexOf(eStr) === -1) {
+              validEmails.push(eStr);
+           }
+        }
+      }
+
+      if (validEmails.length > 0) {
+        var bccList = validEmails.join(",");
+        MailApp.sendEmail({
+          to: "noreply@system.com",
+          bcc: bccList,
+          subject: "📢 THÔNG BÁO TỪ QUẢN LÝ TRẠM",
+          body: "Đây là thông báo từ hệ thống dành cho bạn:\n\n" + message + "\n\n---\nTin nhắn tự động từ Trạm Quản Lý Tác Vụ."
+        });
+        successE = true;
+      }
+    }
+
+    if (!successD && !successE) {
+      return { success: false, message: "Chưa chọn người nhận hợp lệ hoặc thiếu cấu hình (Vd: webhook trống, người nhận ko có mail)." };
+    }
+
+    return { success: true, message: "Đã thiết lập gửi thông báo thành công!" };
+  } catch (error) {
+    return { success: false, message: "Lỗi gửi: " + error.toString() };
   }
 }
