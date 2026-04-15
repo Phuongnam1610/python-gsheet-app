@@ -309,10 +309,12 @@
         <h1>Trạm Quản Lý Tác Vụ</h1>
         <p>Theo dõi tiến độ công việc và hiệu suất toàn đội</p>
       </div>
-      <div style="display:flex; gap:10px; align-items:center;">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+        <div id="userInfoDisplay" style="color:var(--accent); font-size:13px; font-weight:600; margin-right:5px; display:none;"></div>
         <button id="btnStatsTab" onclick="switchTab('stats')" class="btn" style="display:none; background:var(--accent); border-color:var(--accent);">📊 Thống Kê</button>
         <button id="btnSettingsTab" onclick="switchTab('settings')" class="btn" style="display:none;">⚙ Cài Đặt (Admin)</button>
         <a href="?page=report" id="btnReportLink" class="btn">← Form Báo Cáo</a>
+        <button onclick="handleLogout()" class="btn" style="border-color:var(--color-danger); color:var(--color-danger); padding:10px;" title="Đăng Xuất">🚪</button>
         <button onclick="checkVersion()" class="btn" style="font-size:12px; color: var(--text-muted); padding:10px;" title="Kiểm tra phiên bản deploy">🔍</button>
       </div>
     </div>
@@ -963,7 +965,12 @@
 
       try {
         const userObj = JSON.parse(userStr);
-        if (userObj && userObj.role === 'admin') isAdmin = true;
+        if (userObj) {
+           const uInfo = document.getElementById('userInfoDisplay');
+           uInfo.innerText = "👋 Chào, " + (userObj.name || userObj.username);
+           uInfo.style.display = 'block';
+           if (userObj.role === 'admin') isAdmin = true;
+        }
       } catch(e){}
       
       if (isAdmin) {
@@ -1012,6 +1019,13 @@
           });
         }, 1200);
       }
+    }
+    
+    function handleLogout() {
+       if(confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+          localStorage.removeItem('task_app_user');
+          location.reload();
+       }
     }
     
     function handleLogin(e) {
