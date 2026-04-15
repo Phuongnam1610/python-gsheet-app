@@ -259,6 +259,7 @@
         <p>Theo dõi tiến độ công việc và hiệu suất toàn đội</p>
       </div>
       <a href="?page=report" id="btnReportLink" class="btn">← Form Báo Cáo</a>
+      <button onclick="checkVersion()" class="btn" style="font-size:12px; color: var(--text-muted);" title="Kiểm tra phiên bản deploy">🔍 Ver?</button>
     </div>
     
     <div class="stats-grid">
@@ -332,6 +333,11 @@
       <div style="display: flex; align-items: center; gap: 15px;">
         <button id="btnQuickSend" onclick="sendQuickMessage()" class="btn btn-primary" style="width: 150px; text-align: center;">Gửi Thông Báo</button>
         <span id="quickSendAlert" style="font-size: 14px; display: none;"></span>
+      </div>
+      <!-- DEBUG LOG HIỂN THỊ TRỰC TIẾP -->
+      <div id="debugLogBox" style="display:none; margin-top: 15px; background: #0a0f1e; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #94a3b8; max-height: 220px; overflow-y: auto;">
+        <div style="color: var(--color-warning); font-weight: bold; margin-bottom: 8px;">📋 SERVER DEBUG LOG:</div>
+        <div id="debugLogContent"></div>
       </div>
     </div>
     
@@ -655,7 +661,7 @@
       };
 
       // Hàm đóng dọn sau khi thực hiện
-      const cleanup = (success, text) => {
+      const cleanup = (success, text, debugLog) => {
         btn.innerText = 'Gửi Thông Báo';
         btn.style.opacity = '1';
         btn.disabled = false;
@@ -663,14 +669,22 @@
         alertBox.style.color = success ? 'var(--color-success)' : 'var(--color-danger)';
         alertBox.innerText = success ? '✅ ' + text : '❌ ' + text;
         if(success) document.getElementById('quickMessage').value = '';
-        setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
+        // Hiển thị debug log server trực tiếp trên giao diện
+        const logBox = document.getElementById('debugLogBox');
+        const logContent = document.getElementById('debugLogContent');
+        if (debugLog && debugLog.length > 0) {
+          logContent.innerHTML = debugLog.map((line, i) =>
+            `<div style="padding:2px 0;color:${i===0?'#60a5fa':line.includes('LỖI')||line.includes('Error')||line.includes('THẤT BẠI')?'#f87171':line.includes('THÀNH CÔNG')||line.includes('OK')?'#34d399':'#94a3b8'}">${line.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+          ).join('');
+          logBox.style.display = 'block';
+        }
       };
 
       // Call Backend
       if (typeof google !== 'undefined' && google.script && APP_SCRIPT_URL === "") {
         google.script.run
-          .withSuccessHandler(function(res) { cleanup(res.success, res.message); })
-          .withFailureHandler(function(err) { cleanup(false, "Lỗi mạng: " + err); })
+          .withSuccessHandler(function(res) { cleanup(res.success, res.message, res.debug_log); })
+          .withFailureHandler(function(err) { cleanup(false, "Lỗi mạng: " + err, null); })
           .sendQuickMessage(dataObj.message, dataObj.sendDiscord, dataObj.sendEmail);
       } else if (APP_SCRIPT_URL !== "") {
         fetch(APP_SCRIPT_URL, {
@@ -679,15 +693,31 @@
           body: JSON.stringify({ action: "sendQuickMessage", data: dataObj })
         })
         .then(res => res.json())
-        .then(res => cleanup(res.success, res.message))
-        .catch(err => cleanup(false, "Lỗi mạng: " + err));
+        .then(res => cleanup(res.success, res.message, res.debug_log))
+        .catch(err => cleanup(false, "Lỗi mạng: " + err, null));
       } else {
-        setTimeout(() => cleanup(true, "Đã gửi thông báo thành công (Test Mode)"), 1000);
+        setTimeout(() => cleanup(true, "Đã gửi thành công (Test Mode)", ["Test mode - không có backend"]), 1000);
       }
     }
 
     // MỤC CẤU HÌNH GITHUB PAGES
-    const APP_SCRIPT_URL = ""; 
+    const APP_SCRIPT_URL = "";
+
+    function checkVersion() {
+      if (!APP_SCRIPT_URL) { alert("APP_SCRIPT_URL chưa được cấu hình."); return; }
+      fetch(APP_SCRIPT_URL + "?action=getDebugInfo")
+        .then(r => r.json())
+        .then(info => {
+          alert(
+            "🔍 THÔNG TIN PHIÊN BẢN DEPLOY\n\n" +
+            "✅ Version: " + info.version + "\n" +
+            "📅 Server Time: " + info.deployedAt + "\n" +
+            "👤 Chạy quyền: " + info.executingAs + "\n" +
+            "🆔 Script ID: " + info.scriptId
+          );
+        })
+        .catch(e => alert("Lỗi kết nối: " + e));
+    }
 
     window.onload = () => {
       // 1. Nút Back
