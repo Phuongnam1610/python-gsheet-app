@@ -3,7 +3,7 @@ import sys
 import os
 import re
 
-DEPLOY_ID = "AKfycbz82I5oG4o1N25QX6hpIvLXVqMK3xVypYLnynWaba_58eB3OgdMywoeBk8aGaIWboBP_Q"
+DEPLOY_ID = "AKfycbzyFRExYO7I6p86iZqkPTny9yfdSPF7jZAh3l6U3MdxYfB9xiXN4Gx5EAfFNbwZ7X7_Ew"
 SHEET_ID = "1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g"
 
 def check_tool(name, cmd):
