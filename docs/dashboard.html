@@ -366,7 +366,12 @@
     </div>
     
     <div class="card" style="margin-bottom: 30px;">
-      <div class="card-title">🔥 Bảng Theo Dõi Tiến Độ</div>
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>🔥 Bảng Theo Dõi Tiến Độ</span>
+        <button onclick="openCreateTaskModal()" class="btn btn-primary" style="font-size: 13px; padding: 6px 16px; display:flex; align-items:center; gap:6px;">
+          <span>➕</span> Giao / Báo Cáo Task
+        </button>
+      </div>
       
       <!-- BỘ LỌC BẢNG -->
       <div class="filters-bar">
@@ -540,6 +545,88 @@
     </div>
   </div>
 
+  <!-- MODAL TẠO TASK NHANH -->
+  <div id="createTaskModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeCreateTaskModal()">
+    <div class="modal-content" style="max-width: 500px; text-align: left; width: 95%;">
+      <h3 style="margin-bottom: 20px; color: #fff;">➕ Giao Việc / Nhận Việc Mới</h3>
+      
+      <div id="createTaskAlertBox" class="alert-box"></div>
+      
+      <div class="form-group" style="margin-bottom: 12px;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Người Thực Hiện (Ai là người làm?)</label>
+         <select id="createTaskUser" class="form-control" style="cursor:pointer;" onchange="updateCreateTaskDept()">
+            <!-- Dropdown user injected via JS -->
+         </select>
+         <input type="hidden" id="createTaskDept">
+         <input type="hidden" id="createTaskNameLabel">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Tên Công Việc (Mô tả ngắn - Bắt buộc)</label>
+         <input type="text" id="createTaskTitle" class="form-control" placeholder="Ví dụ: Thiết kế Banner, Viết code tính năng X...">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Trạng Thái</label>
+        <select id="createTaskStatus" class="form-control" style="cursor:pointer;">
+          <option value="Mới bắt đầu" style="background:#1e293b;">Mới bắt đầu</option>
+          <option value="Đang tiến hành" style="background:#1e293b;">Đang tiến hành</option>
+        </select>
+      </div>
+      
+      <div style="display: flex; gap: 15px;">
+        <div class="form-group" style="flex: 1; margin-bottom: 12px;">
+          <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Mức Ưu Tiên</label>
+          <select id="createTaskPriority" class="form-control" style="cursor:pointer;">
+            <option value="Bình thường" style="background:#1e293b;">Bình thường</option>
+            <option value="Cao 🚨" style="background:#1e293b;">Cao 🚨</option>
+            <option value="Gấp 🔥" style="background:#1e293b;">Gấp 🔥</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 1; margin-bottom: 12px;">
+          <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Hạn Chót (Deadline)</label>
+          <input type="date" id="createTaskDeadline" class="form-control" style="cursor:pointer;">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Ghi chú / Mô tả chi tiết</label>
+         <textarea id="createTaskDesc" class="form-control" style="min-height: 80px;" placeholder="Hướng dẫn hoặc mô tả thêm..."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+         <button onclick="closeCreateTaskModal()" class="btn" style="background:var(--card-bg);">Hủy</button>
+         <button onclick="submitNewTask()" id="btnSaveCreate" class="btn btn-primary" style="padding:10px 20px;">🚀 Bắt Đầu (Tạo Task)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CHI TIẾT CHART TASK -->
+  <div id="chartDetailModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this) closeChartDetailModal()">
+    <div class="modal-content" style="max-width: 900px; text-align: left; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+         <h3 style="color: #fff; margin:0;" id="chartDetailModalTitle">📋 Danh Sách Task</h3>
+         <button onclick="closeChartDetailModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:24px; cursor:pointer; outline:none;">&times;</button>
+      </div>
+      
+      <div style="max-height: 60vh; overflow-y: auto;">
+        <table class="table" style="margin-top: 0; min-width: 600px;">
+          <thead>
+            <tr>
+              <th width="140">Thời gian</th>
+              <th width="180">Nhân sự</th>
+              <th>Chi tiết Task</th>
+              <th width="140">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="chartDetailTableBody">
+             <!-- Dữ liệu render tại đây -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     let adminTemplates = [];
     
@@ -568,6 +655,8 @@
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).loginUser(dataObj.username, dataObj.password);
            } else if (action === "updateTask") {
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateTask(dataObj);
+           } else if (action === "submitTask") {
+              google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).submitTask(dataObj);
            }
         });
       } else if (APP_SCRIPT_URL !== "") {
@@ -673,6 +762,7 @@
     Chart.defaults.plugins.tooltip.cornerRadius = 8;
 
     let globalTasks = [];
+    let globalAllUsers = [];
     let statusChartInstance = null;
     let deptChartInstance = null;
 
@@ -692,8 +782,8 @@
       renderDeptChart(data.byDepartment);
       renderUsersCheckList(data.allUsers);
       
-      globalTasks = data.recentTasks || []; // Nếu có toàn bộ task thì tốt hơn, nhưng đây là dải recentTasks (max 20 theo code GAS cũ)
-      // Chú ý: Backend GAS trả về 20 tasks gần nhất. Cần nhắc người dùng nếu họ muốn lọc toàn bộ thì backend cần cập nhật.
+      globalTasks = data.recentTasks || []; 
+      globalAllUsers = data.allUsers || [];
       
       initFilters(data.byDepartment, data.byStatus);
       renderTable(globalTasks);
@@ -818,6 +908,13 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: '75%',
+          onClick: function(evt, elements) {
+            if (elements && elements.length > 0) {
+              const index = elements[0].index;
+              const label = labels[index]; 
+              showChartDetailPopup("status", label);
+            }
+          },
           plugins: {
             legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, color: '#CBD5E1'} }
           }
@@ -858,6 +955,13 @@
             y: {
               grid: { display: false, drawBorder: false },
               ticks: { color: '#e2e8f0' }
+            }
+          },
+          onClick: function(evt, elements) {
+            if (elements && elements.length > 0) {
+              const index = elements[0].index;
+              const label = labels[index]; 
+              showChartDetailPopup("department", label);
             }
           },
           plugins: {
@@ -1207,6 +1311,162 @@
           box.style.color = "var(--color-danger)";
           box.innerText = "❌ Lỗi mạng: " + err;
        });
+    }
+
+    // --- TẠO TASK NHANH ---
+    function openCreateTaskModal() {
+       let userMnv = '';
+       let userRole = '';
+       try {
+         const u = JSON.parse(localStorage.getItem('task_app_user') || '{}');
+         userMnv = u.mnv || '';
+         userRole = u.role || 'user';
+       } catch(e) {}
+       
+       const sel = document.getElementById("createTaskUser");
+       sel.innerHTML = "";
+       
+       if (userRole === "admin" || userRole === "leader") {
+          // Lãnh đạo thấy danh sách của CẢ ĐỘI để giao task thay
+          globalAllUsers.forEach(u => {
+             const opt = document.createElement("option");
+             opt.value = u.mnv;
+             opt.innerText = `${u.name} (${u.mnv}) - ${u.department}`;
+             opt.setAttribute("data-dept", u.department);
+             opt.setAttribute("data-name", u.name);
+             opt.setAttribute("data-discord", u.discord);
+             opt.setAttribute("data-gmail", u.gmail);
+             sel.appendChild(opt);
+          });
+       } else {
+          // Nhân sự thường chỉ thấy CHÍNH MÌNH (Tự nhận task)
+          const myUser = globalAllUsers.find(u => u.mnv === userMnv);
+          if(myUser) {
+             const opt = document.createElement("option");
+             opt.value = myUser.mnv;
+             opt.innerText = `${myUser.name} (${myUser.mnv}) - ${myUser.department}`;
+             opt.setAttribute("data-dept", myUser.department);
+             opt.setAttribute("data-name", myUser.name);
+             opt.setAttribute("data-discord", myUser.discord);
+             opt.setAttribute("data-gmail", myUser.gmail);
+             sel.appendChild(opt);
+          }
+       }
+       sel.value = userMnv; // Mặc định tự chọn chính mình
+       updateCreateTaskDept();
+       
+       document.getElementById("createTaskTitle").value = "";
+       document.getElementById("createTaskDesc").value = "";
+       document.getElementById("createTaskAlertBox").style.display = "none";
+       document.getElementById("createTaskModalOverlay").style.display = "flex";
+    }
+
+    function updateCreateTaskDept() {
+       const sel = document.getElementById("createTaskUser");
+       if(sel.options[sel.selectedIndex]) {
+         document.getElementById("createTaskDept").value = sel.options[sel.selectedIndex].getAttribute("data-dept");
+         document.getElementById("createTaskNameLabel").value = sel.options[sel.selectedIndex].getAttribute("data-name");
+       }
+    }
+
+    function closeCreateTaskModal() {
+       document.getElementById("createTaskModalOverlay").style.display = "none";
+    }
+    
+    function submitNewTask() {
+       const sel = document.getElementById("createTaskUser");
+       if(!sel.value) { alert("Chưa chọn người thức hiện!"); return; }
+       
+       const title = document.getElementById("createTaskTitle").value.trim();
+       if (!title) { alert("Tên báo cáo/Task không được trống!"); return; }
+       
+       const payload = {
+          mnv: sel.value,
+          member_name: document.getElementById("createTaskNameLabel").value,
+          department: document.getElementById("createTaskDept").value,
+          task_name: title,
+          task_desc: document.getElementById("createTaskDesc").value.trim(),
+          status: document.getElementById("createTaskStatus").value,
+          priority: document.getElementById("createTaskPriority").value,
+          deadline: document.getElementById("createTaskDeadline").value,
+          discord_id: sel.options[sel.selectedIndex].getAttribute("data-discord") || "",
+          gmail: sel.options[sel.selectedIndex].getAttribute("data-gmail") || ""
+       };
+       
+       const btn = document.getElementById('btnSaveCreate');
+       const box = document.getElementById('createTaskAlertBox');
+       btn.innerText = "Đang tạo..."; btn.disabled = true; box.style.display = "none";
+       
+       callSystemAPI("submitTask", payload).then(res => {
+          btn.innerText = "🚀 Bắt Đầu (Tạo Task)"; btn.disabled = false;
+          if (res.success) {
+             box.style.display = "block";
+             box.style.borderColor = "rgba(16, 185, 129, 0.3)";
+             box.style.background = "rgba(16, 185, 129, 0.15)";
+             box.style.color = "var(--color-success)";
+             box.innerText = "✅ " + res.message + " Trang đang tự tải lại...";
+             setTimeout(() => { location.reload(); }, 900);
+          } else {
+             box.style.display = "block";
+             box.style.borderColor = "rgba(239, 68, 68, 0.3)";
+             box.style.background = "rgba(239, 68, 68, 0.15)";
+             box.style.color = "var(--color-danger)";
+             box.innerText = "❌ " + res.message;
+          }
+       }).catch(err => {
+          btn.innerText = "🚀 Bắt Đầu (Tạo Task)"; btn.disabled = false;
+          alert("Lỗi kết nối: " + err);
+       });
+    }
+
+    // --- HIỂN THỊ CHI TIẾT TASK TỪ CHART ---
+    function showChartDetailPopup(type, labelValue) {
+       let filtered = [];
+       if (type === "status") {
+          filtered = globalTasks.filter(t => t.status === labelValue);
+          document.getElementById("chartDetailModalTitle").innerHTML = `📋 Các việc mang trạng thái <span style="color:var(--accent)">"${labelValue}"</span>`;
+       } else if (type === "department") {
+          filtered = globalTasks.filter(t => t.department === labelValue);
+          document.getElementById("chartDetailModalTitle").innerHTML = `📋 Việc của ban <span style="color:var(--accent)">"${labelValue}"</span>`;
+       }
+       
+       const tbody = document.getElementById("chartDetailTableBody");
+       tbody.innerHTML = '';
+       if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #94a3b8;">Không có dữ liệu 📭</td></tr>';
+       } else {
+          filtered.forEach(task => {
+             const tr = document.createElement('tr');
+             
+             let badgeClass = 'badge-purple';
+             let s = task.status.toLowerCase();
+             if(s.includes('hoàn thành')) badgeClass = 'badge-success';
+             else if(s.includes('đang')) badgeClass = 'badge-primary';
+             else if(s.includes('nghẽn') || s.includes('hỗ trợ')) badgeClass = 'badge-danger';
+             
+             const memberInfo = task.mnv ? `<b>${task.member_name}</b><br><small style="color:var(--text-muted)">${task.mnv}</small>` : `<b>${task.member_name}</b>`;
+             const taskIdBadge = task.task_id && !task.task_id.startsWith("FALLBACK-") ? `<div style="margin-top:4px;"><span style="font-size:10px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; color: var(--text-muted);">#${task.task_id}</span></div>` : "";
+             
+             tr.innerHTML = `
+                <td style="color: var(--text-muted); font-size: 13px;">${task.timestamp}</td>
+                <td>${memberInfo}</td>
+                <td>
+                  <div style="font-weight: 500; color: #fff; max-width: 300px; overflow:hidden; text-overflow:ellipsis;" title="${task.task_name}">
+                    ${task.task_name}
+                  </div>
+                  ${taskIdBadge}
+                </td>
+                <td><span class="badge ${badgeClass}">${task.status}</span></td>
+             `;
+             tbody.appendChild(tr);
+          });
+       }
+       
+       document.getElementById("chartDetailModalOverlay").style.display = "flex";
+    }
+    
+    function closeChartDetailModal() {
+       document.getElementById("chartDetailModalOverlay").style.display = "none";
     }
 
     window.onload = initDashboard;
