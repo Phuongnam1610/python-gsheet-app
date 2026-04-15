@@ -307,6 +307,28 @@
     </div>
   </div>
 
+  <!-- CỬA SỔ HỎI THĂM THÔNG TIN LIÊN LẠC (Nằm đè lên Login) -->
+  <div id="missingContactModalOverlay" class="modal-overlay" style="display:none; z-index: 9998; backdrop-filter: blur(10px); justify-content: center; align-items: center; background: rgba(15, 23, 42, 0.95);">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--accent);">
+      <h3 style="margin-bottom: 10px; color: var(--text-main);">📡 Thiếu Thông Tin Liên Lạc</h3>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Hệ thống phát hiện bạn chưa cập nhật đủ Email hoặc Discord. Bot sẽ không thể báo thức bạn khi deadline dí!</p>
+      
+      <div id="missingContactAlertBox" class="alert-box"></div>
+      
+      <div class="form-group" style="margin-bottom: 15px; text-align:left;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">ID Discord (Snowflake)</label>
+         <input type="text" id="missingDiscordInfo" class="form-control" placeholder="Ví dụ: 12345678901234...">
+      </div>
+      <div class="form-group" style="margin-bottom: 25px; text-align:left;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Địa chỉ Email</label>
+         <input type="email" id="missingEmailInfo" class="form-control" placeholder="abc@gmail.com...">
+      </div>
+      
+      <button onclick="submitMissingContact(false)" id="btnMissingContact" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight:600; border: none; margin-bottom: 10px;">Lưu Thông Tin</button>
+      <button onclick="submitMissingContact(true)" class="btn" style="width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border-color); color: var(--text-muted);">Bỏ Qua Lần Này</button>
+    </div>
+  </div>
+
   <!-- VIEW: ĐĂNG NHẬP (Dành cho Dashboard) -->
   <div id="loginView" style="display: none;" class="form-container">
     <div class="header-section">
@@ -681,6 +703,8 @@
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).submitTask(dataObj);
            } else if (action === "changeUserPassword") {
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).changeUserPassword(dataObj.mnv, dataObj.oldPassword, dataObj.newPassword);
+           } else if (action === "updateUserInfo") {
+              google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateUserInfo(dataObj.username, dataObj.discord, dataObj.gmail);
            }
         });
       } else if (APP_SCRIPT_URL !== "") {
@@ -1291,12 +1315,19 @@
                box.style.borderColor = "rgba(245, 158, 11, 0.3)";
                box.style.color = "var(--color-warning)";
                box.innerText = "Yêu cầu đổi mật khẩu mặc định!";
-               // Ẩn form login, mở popup bắt buộc đổi
+                // Ẩn form login, mở popup bắt buộc đổi
                setTimeout(() => {
                  document.getElementById("loginView").style.display = "none";
                  document.getElementById("btnForceChangePass").setAttribute("data-mnv", res.data.mnv);
                  document.getElementById("forceChangePassModalOverlay").style.display = "flex";
                }, 600);
+            } else if (!res.data.discord_id || !res.data.gmail) {
+               // Hiển thị form xin contact
+               document.getElementById("loginView").style.display = "none";
+               document.getElementById("btnMissingContact").setAttribute("data-userinfo", JSON.stringify(res.data));
+               document.getElementById("missingDiscordInfo").value = res.data.discord_id || "";
+               document.getElementById("missingEmailInfo").value = res.data.gmail || "";
+               document.getElementById("missingContactModalOverlay").style.display = "flex";
             } else {
                localStorage.setItem('task_app_user', JSON.stringify(res.data));
                box.style.display = "block";
@@ -1313,10 +1344,49 @@
             box.style.color = "var(--color-danger)";
             box.innerText = "❌ " + res.message;
          }
-      }).catch(err => {
+       }).catch(err => {
          btn.innerText = "Đăng Nhập ➜"; btn.disabled = false;
          alert("Lỗi kết nối: " + err);
       });
+    }
+
+    function submitMissingContact(skip) {
+       const userStr = document.getElementById("btnMissingContact").getAttribute("data-userinfo");
+       const userObj = JSON.parse(userStr);
+       const box = document.getElementById("missingContactAlertBox");
+       
+       // Nếu ấn "Bỏ Qua" -> Đẩy thẳng vào web nội bộ
+       if (skip) {
+           localStorage.setItem('task_app_user', JSON.stringify(userObj));
+           location.reload();
+           return;
+       }
+       
+       const dId = document.getElementById("missingDiscordInfo").value.trim();
+       const email = document.getElementById("missingEmailInfo").value.trim();
+       
+       if (!dId && !email) {
+           box.style.display = "block"; box.innerText = "Thà ấn Bỏ qua còn hơn ấn Lưu mà không gõ gì bạn ơi!"; box.style.color = "var(--color-warning)"; return;
+       }
+       
+       const btn = document.getElementById("btnMissingContact");
+       btn.innerText = "Đang cập nhật..."; btn.disabled = true;
+       
+       callSystemAPI("updateUserInfo", {username: userObj.mnv, discord: dId || userObj.discord_id, gmail: email || userObj.gmail}).then(res => {
+           if (res.success) {
+               userObj.discord_id = dId || userObj.discord_id;
+               userObj.gmail = email || userObj.gmail;
+               localStorage.setItem('task_app_user', JSON.stringify(userObj));
+               box.style.display = "block"; box.innerText = "✅ Đã lưu CSDL! Đang vào nhà..."; box.style.color = "var(--color-success)";
+               setTimeout(() => { location.reload(); }, 1000);
+           } else {
+               btn.innerText = "Lưu Thông Tin"; btn.disabled = false;
+               box.style.display = "block"; box.innerText = "❌ " + res.message; box.style.color = "var(--color-danger)";
+           }
+       }).catch(err => {
+           btn.innerText = "Lưu Thông Tin"; btn.disabled = false;
+           box.style.display = "block"; box.innerText = "Lỗi mạng: " + err;
+       });
     }
     
     // --- CHỈNH SỬA TASK LOGIC ---

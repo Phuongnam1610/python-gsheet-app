@@ -409,6 +409,22 @@ function updateUserInfo(username, discord, gmail) {
 
 var DISCORD_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1493771438656716885/TPyRKMgY8IXRjTaZnf9t6QpyEUD-3mJreIubOvpL8HGDqfVyZZ9YJxGZk_QCT6P7lcuX";
 
+// Hàm Helper: Để bạn chạy (Run) 1 lần trên giao diện Apps Script nhằm tự động hóa vĩnh viễn
+function installDailyTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'checkOverdueTasks') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('checkOverdueTasks')
+           .timeBased()
+           .everyDays(1)
+           .atHour(8)
+           .create();
+  console.log("Đã cài đặt thành công tự động chạy báo cáo quá hạn lúc 8h-9h sáng mỗi ngày!");
+}
+
 // Hàm này sẽ được gán vào Trigger chạy mỗi ngày (Daily)
 function checkOverdueTasks() {
   try {
@@ -453,20 +469,44 @@ function checkOverdueTasks() {
       
       deadlineDate.setHours(0,0,0,0);
       
+      var diffTime = deadlineDate.getTime() - today.getTime();
+      var diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      var taskName = row[4] || 'Không rõ';
+      var memberName = row[2] || 'Bạn';
+      var discordId = (row[9] || '').toString().trim();
+      var gmail = (row[10] || '').toString().trim();
+      
       // So sánh ngày
-      if (deadlineDate < today) {
-         var taskName = row[4] || 'Không rõ';
-         var memberName = row[2] || 'Bạn';
-         var discordId = (row[9] || '').toString().trim();
-         var gmail = (row[10] || '').toString().trim();
-         
-         console.log("Phát hiện task quá hạn! [Task: " + taskName + "] - [Member: " + memberName + "] - [Email: " + gmail + "] - [Discord: " + discordId + "]");
+      if (diffDays < 0) {
+         console.log("Phát hiện task quá hạn! [Task: " + taskName + "] - [Member: " + memberName + "]");
 
-         // Gửi Email
-         sendOverdueEmail(gmail, memberName, taskName, deadlineDate);
+         if (!gmail || gmail.indexOf('@') === -1) {
+             console.log("=> Bỏ qua gửi thư: " + memberName + " không có Email hợp lệ.");
+         } else {
+             sendOverdueEmail(gmail, memberName, taskName, deadlineDate);
+         }
          
-         // Gửi Discord
+         if (!discordId || discordId === "") {
+             console.log("=> Cảnh báo: " + memberName + " không có mốc ID Discord (Snowflake), sẽ chỉ gắn tên chữ.");
+         }
+         
          sendOverdueDiscord(discordId, memberName, taskName, deadlineDate);
+         
+      } else if (diffDays === 1) {
+         console.log("Phát hiện task sắp đến hạn (1 ngày)! [Task: " + taskName + "] - [Member: " + memberName + "]");
+         
+         if (!gmail || gmail.indexOf('@') === -1) {
+             console.log("=> Bỏ qua gửi thư: " + memberName + " không có Email hợp lệ.");
+         } else {
+             sendUpcomingEmail(gmail, memberName, taskName, deadlineDate);
+         }
+         
+         if (!discordId || discordId === "") {
+             console.log("=> Cảnh báo: " + memberName + " không có mốc ID Discord (Snowflake), sẽ chỉ gắn tên chữ.");
+         }
+         
+         sendUpcomingDiscord(discordId, memberName, taskName, deadlineDate);
       }
     }
   } catch(e) {
@@ -474,19 +514,21 @@ function checkOverdueTasks() {
   }
 }
 
+// =======================
+// THÔNG BÁO QUÁ HẠN (OVERDUE)
+// =======================
+
 function sendOverdueEmail(email, memberName, taskName, deadlineDate) {
-  console.log("Đang xử lý gửi Email cho: " + email);
   if (!email || email.indexOf('@') === -1) {
-    console.log("=> Lỗi: Định dạng email không hợp lệ hoặc trống (" + email + ")");
-    return;
+    return; // Đã check ở phía trên, return luôn cho an toàn
   }
   var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
   
-  var subject = "🚨 CẢNH BÁO: Bạn có Task chưa hoàn thành đã quá hạn!";
+  var subject = "[CANH BAO] Ban co Task chua hoan thanh da qua han!";
   var body = "Chào " + memberName + ",\n\n" +
              "Hệ thống quản lý Task nhận thấy bạn có công việc đã vượt quá thời hạn dự kiến mà vẫn chưa hoàn thành.\n\n" +
-             "📌 Tên công việc đang làm: " + taskName + "\n" +
-             "⏰ Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
+             "[!] Tên công việc đang làm: " + taskName + "\n" +
+             "[*] Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
              "Vui lòng ưu tiên xử lý và cập nhật tiến độ lên form báo cáo nội bộ sớm nhất có thể.\n" +
              "Cảm ơn bạn đã hợp tác!\n\n" +
              "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
@@ -516,22 +558,58 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
                 "⏰ **Quá hạn từ:** " + deadlineFormatted + "\n\n" +
                 "Vui lòng xử lý và phản hồi lại hệ thống sớm nhất có thể!";
                 
-  var payload = JSON.stringify({
-    content: message
-  });
-  
-  var params = {
-    method: "POST",
-    contentType: "application/json",
-    payload: payload,
-    muteHttpExceptions: true
-  };
+  var payload = JSON.stringify({ content: message });
   
   try {
-    var response = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, params);
+    var response = UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true });
     console.log("=> Hồi đáp từ Discord Webhook: Code " + response.getResponseCode());
   } catch(e) {
     console.error("=> THẤT BẠI: Lỗi khi gọi UrlFetchApp tới Discord Webhook:", e);
+  }
+}
+
+// =======================
+// THÔNG BÁO SẮP TỚI HẠN (UPCOMING)
+// =======================
+
+function sendUpcomingEmail(email, memberName, taskName, deadlineDate) {
+  if (!email || email.indexOf('@') === -1) return;
+  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
+  
+  var subject = "[NHAC NHO] Sap toi han chot cong viec cua ban!";
+  var body = "Chào " + memberName + ",\n\n" +
+             "Hệ thống quản lý Task nhắc nhở thân thiện rằng bạn có công việc sắp đến hạn vào ngày mai.\n\n" +
+             "[!] Tên công việc đang làm: " + taskName + "\n" +
+             "[*] Hạn chót (Deadline): " + deadlineFormatted + "\n\n" +
+             "Hãy đảm bảo bạn hoàn thành hoặc cập nhật tiến độ sớm để tránh bị quá hạn nhé!\n" +
+             "Chúc bạn một ngày làm việc hiệu quả.\n\n" +
+             "---\nĐây là email tự động từ Hệ thống Quản Lý Tác Vụ.";
+             
+  try {
+    GmailApp.sendEmail(email, subject, body);
+  } catch (e) {
+    console.error("=> THẤT BẠI (Upcoming Email):", e);
+  }
+}
+
+function sendUpcomingDiscord(discordId, memberName, taskName, deadlineDate) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") return;
+  
+  var deadlineFormatted = Utilities.formatDate(deadlineDate, "GMT+7", "dd/MM/yyyy");
+  var mention = (discordId && discordId !== "") ? "<@" + discordId + ">" : memberName;
+  
+  var message = "⚠️ **NHẮC NHỞ SẮP TỚI HẠN CHÓT (UPCOMING)** ⚠️\n\n" +
+                "👤 **Nhân sự:** " + mention + "\n" +
+                "📌 **Công việc đang làm:** `" + taskName + "`\n" +
+                "⏰ **Thời hạn:** " + deadlineFormatted + " (Ngàỳ mai)\n\n" +
+                "Chỉ còn 1 ngày nữa là tới deadline rồi, hãy kiểm tra và hoàn thành sớm nhé!";
+                
+  var payload = JSON.stringify({ content: message });
+  
+  try {
+    UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: "POST", contentType: "application/json", payload: payload, muteHttpExceptions: true });
+  } catch(e) {
+    console.error("=> THẤT BẠI (Upcoming Discord):", e);
   }
 }
 
