@@ -1,4 +1,5 @@
 var SHEET_ID = '1dOZrzeFbca-g7YVGChWScxDy0HH2KA5QDhDX7ZP7T4g';
+var VERSION = '2026-04-15 v3 (debug-enabled)';
 
 function doGet(e) {
   var page = e.parameter.page;
@@ -10,6 +11,15 @@ function doGet(e) {
   }
   if (action === 'getHistory') {
     return getHistory(e);
+  }
+  if (action === 'getDebugInfo') {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      version: VERSION,
+      deployedAt: Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss'),
+      executingAs: Session.getEffectiveUser().getEmail(),
+      scriptId: ScriptApp.getScriptId()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (page === 'dashboard') {
@@ -504,8 +514,10 @@ function sendOverdueDiscord(discordId, memberName, taskName, deadlineDate) {
 
 // API: Gửi thông báo nhanh từ Dashboard
 function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetDiscords) {
+  var debugLog = []; // Log trả về thẳng frontend
+  function log(msg) { console.log(msg); debugLog.push(msg); }
   try {
-    console.log("=== BẮT ĐẦU GỬI THÔNG BÁO NHANH ===");
+    log("=== BẮT ĐẦU GỬI THÔNG BÁO === Version: " + VERSION);
     console.log("Nội dung tin nhắn: ", message);
     console.log("Tùy chọn: Gửi Discord(" + sendDiscord + "), Gửi Email(" + sendEmail + ")");
     console.log("Target Discord IDs: ", targetDiscords);
@@ -577,15 +589,15 @@ function sendQuickMessage(message, sendDiscord, sendEmail, targetEmails, targetD
     }
 
     if (!successD && !successE) {
-      console.log("=> Cảnh báo: Không có tin nhắn nào được gửi đi (do thiết lập lệnh gửi trống hoặc webhook url trống).");
-      return { success: false, message: "Chưa chọn người nhận hợp lệ hoặc thiếu cấu hình (Vd: webhook trống, người nhận ko có mail)." };
+      log("=> Cảnh báo: Không có tin nhắn nào được gửi đi.");
+      return { success: false, message: "Chưa chọn người nhận hợp lệ hoặc thiếu cấu hình.", debug_log: debugLog };
     }
 
-    console.log("=== KẾT THÚC GỬI THÔNG BÁO ===");
-    return { success: true, message: "Đã thiết lập gửi thông báo thành công!" };
+    log("=== KẾT THÚC GỬI THÔNG BÁO OK ===");
+    return { success: true, message: "Đã thiết lập gửi thông báo thành công!", debug_log: debugLog };
   } catch (error) {
-    console.log("=== LỖI KHI GỬI THÔNG BÁO ===");
-    console.log(error.toString(), error.stack);
-    return { success: false, message: "Lỗi gửi: " + error.toString() };
+    log("=== LỖI KHI GỬI THÔNG BÁO: " + error.toString());
+    log("Stack: " + error.stack);
+    return { success: false, message: "Lỗi gửi: " + error.toString(), debug_log: debugLog };
   }
 }
