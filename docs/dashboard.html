@@ -285,6 +285,28 @@
 </head>
 <body>
 
+  <!-- CỬA SỔ ÉP ĐỔI MẬT KHẨU (Nằm đè lên cả Login) -->
+  <div id="forceChangePassModalOverlay" class="modal-overlay" style="display:none; z-index: 9999; backdrop-filter: blur(10px); justify-content: center; align-items: center; background: rgba(15, 23, 42, 0.95);">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border: 2px solid var(--color-warning);">
+      <h3 style="margin-bottom: 10px; color: var(--color-warning);">⚠️ Yêu Cầu Đổi Mật Khẩu</h3>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Tài khoản của bạn đang sử dụng mật khẩu mặc định (123456). Vì lý do bảo mật, vui lòng thiết lập mật khẩu cá nhân mới trước khi truy cập hệ thống!</p>
+      
+      <div id="forceChangeAlertBox" class="alert-box"></div>
+      
+      <div class="form-group" style="margin-bottom: 15px; text-align:left;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Mật Khẩu Mới</label>
+         <input type="password" id="forceNewPass" class="form-control" placeholder="Tối thiểu 6 ký tự...">
+      </div>
+      <div class="form-group" style="margin-bottom: 25px; text-align:left;">
+         <label style="color:var(--text-muted); font-size:13px; display:block; margin-bottom:4px;">Nhập Lại Mật Khẩu Mới</label>
+         <input type="password" id="forceRePass" class="form-control" placeholder="Khớp với mật khẩu trên...">
+      </div>
+      
+      <button onclick="submitForceChangePass()" id="btnForceChangePass" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight:600; background: var(--color-warning); color: #000; border: none;">Cập Nhật & Lưu</button>
+      <button onclick="location.reload()" class="btn" style="width: 100%; padding: 12px; margin-top: 10px; background: transparent; border: 1px solid var(--border-color);">Hủy (Quay lại đăng nhập)</button>
+    </div>
+  </div>
+
   <!-- VIEW: ĐĂNG NHẬP (Dành cho Dashboard) -->
   <div id="loginView" style="display: none;" class="form-container">
     <div class="header-section">
@@ -657,6 +679,8 @@
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateTask(dataObj);
            } else if (action === "submitTask") {
               google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).submitTask(dataObj);
+           } else if (action === "changeUserPassword") {
+              google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).changeUserPassword(dataObj.mnv, dataObj.oldPassword, dataObj.newPassword);
            }
         });
       } else if (APP_SCRIPT_URL !== "") {
@@ -1214,6 +1238,38 @@
        }
     }
     
+    function submitForceChangePass() {
+      const mnv = document.getElementById("btnForceChangePass").getAttribute("data-mnv");
+      const p1 = document.getElementById("forceNewPass").value.trim();
+      const p2 = document.getElementById("forceRePass").value.trim();
+      const box = document.getElementById("forceChangeAlertBox");
+      const btn = document.getElementById("btnForceChangePass");
+      
+      if(!p1 || !p2) { box.style.display="block"; box.innerText="Vui lòng nhập đủ thông tin!"; box.style.color="var(--color-warning)"; return; }
+      if(p1 !== p2) { box.style.display="block"; box.innerText="❌ Mật khẩu gõ lại không khớp!"; box.style.color="var(--color-danger)"; return; }
+      if(p1 === "123456") { box.style.display="block"; box.innerText="❌ Mật khẩu mới không được là 123456!"; box.style.color="var(--color-danger)"; return; }
+      if(p1.length < 6) { box.style.display="block"; box.innerText="❌ Mật khẩu phải từ 6 ký tự!"; box.style.color="var(--color-danger)"; return; }
+      
+      btn.innerText="Đang cập nhật..."; btn.disabled=true; box.style.display="none";
+      
+      callSystemAPI("changeUserPassword", {mnv: mnv, oldPassword: "123456", newPassword: p1}).then(res => {
+         btn.innerText="Cập Nhật & Lưu"; btn.disabled=false;
+         if(res.success) {
+            box.style.display="block";
+            box.innerText="✅ Đổi mật khẩu thành công! Vui lòng đăng nhập lại bằng Pass mới.";
+            box.style.color="var(--color-success)";
+            setTimeout(() => { location.reload(); }, 2000);
+         } else {
+            box.style.display="block";
+            box.innerText="❌ " + res.message;
+            box.style.color="var(--color-danger)";
+         }
+      }).catch(err => {
+         btn.innerText="Cập Nhật & Lưu"; btn.disabled=false;
+         box.style.display="block"; box.innerText="Lỗi mạng: " + err;
+      });
+    }
+
     function handleLogin(e) {
       e.preventDefault();
       const u = document.getElementById('username').value.trim();
@@ -1228,13 +1284,28 @@
       callSystemAPI("loginUser", {username: u, password: p}).then(res => {
          btn.innerText = "Đăng Nhập ➜"; btn.disabled = false;
          if (res.success) {
-            localStorage.setItem('task_app_user', JSON.stringify(res.data));
-            box.style.display = "block";
-            box.style.background = "rgba(16, 185, 129, 0.15)";
-            box.style.borderColor = "rgba(16, 185, 129, 0.3)";
-            box.style.color = "var(--color-success)";
-            box.innerText = "Đăng nhập thành công, đang tải...";
-            setTimeout(() => { location.reload(); }, 500); // Tải lại trang thay cho initDashboard tránh lỗi stale data
+            // Kiểm tra mật khẩu có phải là 123456 không
+            if (p === "123456") {
+               box.style.display = "block";
+               box.style.background = "rgba(245, 158, 11, 0.15)";
+               box.style.borderColor = "rgba(245, 158, 11, 0.3)";
+               box.style.color = "var(--color-warning)";
+               box.innerText = "Yêu cầu đổi mật khẩu mặc định!";
+               // Ẩn form login, mở popup bắt buộc đổi
+               setTimeout(() => {
+                 document.getElementById("loginView").style.display = "none";
+                 document.getElementById("btnForceChangePass").setAttribute("data-mnv", res.data.mnv);
+                 document.getElementById("forceChangePassModalOverlay").style.display = "flex";
+               }, 600);
+            } else {
+               localStorage.setItem('task_app_user', JSON.stringify(res.data));
+               box.style.display = "block";
+               box.style.background = "rgba(16, 185, 129, 0.15)";
+               box.style.borderColor = "rgba(16, 185, 129, 0.3)";
+               box.style.color = "var(--color-success)";
+               box.innerText = "Đăng nhập thành công, đang tải...";
+               setTimeout(() => { location.reload(); }, 500); // Tải lại trang thay cho initDashboard tránh lỗi stale data
+            }
          } else {
             box.style.display = "block";
             box.style.background = "rgba(239, 68, 68, 0.15)";

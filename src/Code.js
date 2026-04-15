@@ -50,6 +50,8 @@ function doPost(e) {
       result = loginUser(data.username, data.password);
     } else if (action === "updateUserInfo") {
       result = updateUserInfo(data.username, data.discord, data.gmail);
+    } else if (action === "changeUserPassword") {
+      result = changeUserPassword(data.mnv, data.oldPassword, data.newPassword);
     } else if (action === "sendQuickMessage") {
       result = sendQuickMessage(data.message, data.sendDiscord, data.sendEmail, data.targetEmails, data.targetDiscords, data.subject);
     } else if (action === "getTemplates") {
@@ -947,4 +949,32 @@ function setupHourlyDeadlineCron() {
            .timeBased()
            .everyHours(1)
            .create();           
+}
+
+// ==================================
+// ĐỔI MẬT KHẨU BẮT BUỘC
+// ==================================
+function changeUserPassword(mnv, oldPass, newPass) {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var sheet = ss.getSheetByName("Users");
+    if (!sheet) return { success: false, message: "Không tìm thấy CSDL Users." };
+    
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+       var rowMnv = data[i][0] ? data[i][0].toString().trim() : "";
+       if (rowMnv === mnv) {
+          var rowPass = data[i][2] ? data[i][2].toString().trim() : "";
+          if (rowPass === oldPass) {
+             sheet.getRange(i + 1, 3).setValue(newPass);
+             return { success: true, message: "Đổi mật khẩu thành công!" };
+          } else {
+             return { success: false, message: "Mật khẩu cũ xác thực không đúng!" };
+          }
+       }
+    }
+    return { success: false, message: "Không tìm thấy User trong Database." };
+  } catch(e) {
+    return { success: false, message: "Lỗi hệ thống: " + e.toString() };
+  }
 }
