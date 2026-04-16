@@ -905,8 +905,21 @@
     let globalAllUsers = [];
     let statusChartInstance = null;
     let deptChartInstance = null;
+    let lastDashboardDataStr = "";
 
     function updateDashboard(data) {
+      const newDataStr = JSON.stringify(data);
+      if (newDataStr === lastDashboardDataStr) {
+         // Data không đổi, chỉ dọn Loader
+         document.getElementById('loader').style.opacity = '0';
+         setTimeout(() => {
+           document.getElementById('loader').style.display = 'none';
+           document.getElementById('mainContent').style.display = 'block';
+         }, 400);
+         return;
+      }
+      lastDashboardDataStr = newDataStr;
+
       document.getElementById('loader').style.opacity = '0';
       setTimeout(() => {
         document.getElementById('loader').style.display = 'none';
@@ -926,11 +939,13 @@
       globalAllUsers = data.allUsers || [];
       
       initFilters(data.byDepartment, data.byStatus);
-      renderTable(globalTasks);
+      filterTable(); // Áp dụng cả khi update để giữ bộ lọc hiện tải
     }
 
     function initFilters(byDept, byStatus) {
       const deptSelect = document.getElementById('deptFilter');
+      const currentDept = deptSelect.value;
+      deptSelect.innerHTML = '<option value="">🏢 Tất cả phòng ban</option>';
       Object.keys(byDept).forEach(dept => {
         if(dept !== 'Không rõ' && dept) {
           const opt = document.createElement('option');
@@ -938,8 +953,11 @@
           deptSelect.appendChild(opt);
         }
       });
+      if (currentDept) deptSelect.value = currentDept; // Phục hồi filter
       
       const statusSelect = document.getElementById('statusFilter');
+      const currentStatus = statusSelect.value;
+      statusSelect.innerHTML = '<option value="">📌 Tất cả trạng thái</option>';
       Object.keys(byStatus).forEach(s => {
         if(s) {
           const opt = document.createElement('option');
@@ -947,6 +965,7 @@
           statusSelect.appendChild(opt);
         }
       });
+      if (currentStatus) statusSelect.value = currentStatus; // Phục hồi filter
     }
 
     function filterTable() {
@@ -1028,10 +1047,15 @@
     }
 
     function renderStatusChart(byStatus) {
-      if(statusChartInstance) statusChartInstance.destroy();
-      
       const labels = Object.keys(byStatus);
       const values = Object.values(byStatus);
+      
+      if(statusChartInstance) {
+         statusChartInstance.data.labels = labels;
+         statusChartInstance.data.datasets[0].data = values;
+         statusChartInstance.update();
+         return;
+      }
       
       const ctx = document.getElementById('statusChart').getContext('2d');
       statusChartInstance = new Chart(ctx, {
@@ -1064,11 +1088,16 @@
     }
 
     function renderDeptChart(byDept) {
-      if(deptChartInstance) deptChartInstance.destroy();
-
       const labels = Object.keys(byDept);
       const values = Object.values(byDept);
       
+      if(deptChartInstance) {
+         deptChartInstance.data.labels = labels;
+         deptChartInstance.data.datasets[0].data = values;
+         deptChartInstance.update();
+         return;
+      }
+
       const ctx = document.getElementById('deptChart').getContext('2d');
       deptChartInstance = new Chart(ctx, {
         type: 'bar', // Bảng thiết kế nằm ngang dễ đọc chữ ban
@@ -1304,7 +1333,9 @@
          document.getElementById('btnSettingsTab').style.display = 'block';
          document.getElementById('btnStatsTab').style.display = 'block';
          loadAllTemplates();
-         loadAllUsersAdmin();
+         loadAllUsersAdmin(false);
+         if (window.adminSettingsRefreshTimer) clearInterval(window.adminSettingsRefreshTimer);
+         window.adminSettingsRefreshTimer = setInterval(() => { loadAllUsersAdmin(true); }, 20000);
       }
 
       // 1. Nút Back
@@ -1722,20 +1753,28 @@
     // KHU VỰC QUẢN LÝ NGƯỜI DÙNG DÀNH CHO ADMIN
     // ==========================================
     let adminUsersList = [];
+    let lastAdminUsersStr = "";
 
-    function loadAllUsersAdmin() {
+    function loadAllUsersAdmin(silent = false) {
        const tbody = document.getElementById("userAdminTableBody");
-       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">⏳ Đang tải dữ liệu...</td></tr>';
+       if (!silent) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">⏳ Đang tải dữ liệu...</td></tr>';
        
        callSystemAPI("getAllUsersAdmin", {}).then(res => {
           if (res.success) {
-             adminUsersList = res.data || [];
-             renderUserAdminTable();
+             const newStr = JSON.stringify(res.data);
+             if (newStr !== lastAdminUsersStr) {
+                 lastAdminUsersStr = newStr;
+                 adminUsersList = res.data || [];
+                 renderUserAdminTable();
+             } else if (!silent) {
+                 adminUsersList = res.data || [];
+                 renderUserAdminTable();
+             }
           } else {
-             tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--color-danger);">${res.message}</td></tr>`;
+             if (!silent) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--color-danger);">${res.message}</td></tr>`;
           }
        }).catch(err => {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--color-danger);">Lỗi mạng: ${err}</td></tr>`;
+          if (!silent) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--color-danger);">Lỗi mạng: ${err}</td></tr>`;
        });
     }
 
