@@ -63,6 +63,10 @@ function doPost(e) {
       result = deleteEmailTemplate(data.id);
     } else if (action === "updateTask") {
       result = updateTask(data);
+    } else if (action === "getAllUsersAdmin") {
+      result = getAllUsersAdmin();
+    } else if (action === "updateUserAdmin") {
+      result = updateUserAdmin(data);
     } else {
       result = { success: false, message: "Action không hợp lệ" };
     }
@@ -419,6 +423,55 @@ function updateUserInfo(username, discord, gmail) {
     return { success: false, message: "Không tìm thấy user." };
   } catch (error) {
     return { success: false, message: "Lỗi hệ thống: " + error.toString() };
+  }
+}
+
+// API: Lấy toàn bộ User (Cho Admin)
+function getAllUsersAdmin() {
+  try {
+    var sheet = getUsersSheet();
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { success: true, data: [] };
+
+    // Cột 1-7: MNV, Name, Pass, Role, Discord, Gmail, Department
+    var data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+    var users = [];
+    for (var i = 0; i < data.length; i++) {
+       users.push({
+          row_index: i + 2,
+          mnv: data[i][0].toString().trim(),
+          name: data[i][1].toString().trim(),
+          password: data[i][2].toString().trim(),
+          role: data[i][3].toString().trim(),
+          discord: data[i][4].toString().trim(),
+          gmail: data[i][5].toString().trim(),
+          department: data[i][6].toString().trim()
+       });
+    }
+    return { success: true, data: users };
+  } catch (error) {
+    return { success: false, message: "Lỗi hệ thống: " + error.toString() };
+  }
+}
+
+// API: Cập nhật User (Cho Admin chỉnh sửa mọi thứ)
+function updateUserAdmin(payload) {
+  try {
+    var sheet = getUsersSheet();
+    var rowIndex = parseInt(payload.row_index);
+    if (!rowIndex || rowIndex < 2) return { success: false, message: "Dữ liệu dòng không hợp lệ!" };
+
+    sheet.getRange(rowIndex, 1).setValue(payload.mnv || "");
+    sheet.getRange(rowIndex, 2).setValue(payload.name || "");
+    sheet.getRange(rowIndex, 3).setValue(payload.password || "");
+    sheet.getRange(rowIndex, 4).setValue(payload.role || "user");
+    sheet.getRange(rowIndex, 5).setValue(payload.discord || "");
+    sheet.getRange(rowIndex, 6).setValue(payload.gmail || "");
+    sheet.getRange(rowIndex, 7).setValue(payload.department || "");
+    
+    return { success: true, message: "Cập nhật tài khoản " + (payload.name || payload.mnv) + " thành công!" };
+  } catch (err) {
+    return { success: false, message: "Lỗi cập nhật: " + err.toString() };
   }
 }
 
